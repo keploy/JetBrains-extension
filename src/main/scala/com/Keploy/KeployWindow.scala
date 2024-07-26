@@ -1,4 +1,4 @@
-package com.catviewer
+package com.Keploy
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -6,7 +6,7 @@ import com.intellij.ui.jcef.JBCefBrowser
 import javax.swing.JComponent
 import org.cef.CefApp
 
-case class CatViewerWindow(project: Project) {
+case class KeployWindow(project: Project) {
   private lazy val webView: JBCefBrowser = {
     val browser = new JBCefBrowser()
     registerAppSchemeHandler()

@@ -12,8 +12,8 @@
   <depends>com.intellij.modules.platform</depends>
 
   <extensions defaultExtensionNs="com.intellij">
-    <toolWindow id="CatViewer" anchor="right" factoryClass="com.catviewer.WindowFactory"/>
-    <projectService id="CatViewerWindowService" serviceImplementation="com.catviewer.CatViewerWindowService"/>
+    <toolWindow id="Keploy" anchor="right" factoryClass="com.Keploy.WindowFactory"/>
+    <projectService id="KeployWindowService" serviceImplementation="com.Keploy.KeployWindowService"/>
   </extensions>
 
 </idea-plugin>
