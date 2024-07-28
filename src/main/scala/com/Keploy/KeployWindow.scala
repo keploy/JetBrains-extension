@@ -10,7 +10,7 @@ case class KeployWindow(project: Project) {
   private lazy val webView: JBCefBrowser = {
     val browser = new JBCefBrowser()
     registerAppSchemeHandler()
-    browser.loadURL("http://myapp/index.html")
+    browser.loadURL("http://myapp/config.html")
     Disposer.register(project, browser)
     browser
   }

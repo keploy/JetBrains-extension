@@ -9,7 +9,7 @@ button{
     cursor: pointer;
     opacity: 0.9;
     font-size: 20px;
-    font-weight: bold;
+    /* font-weight: bold; */
     box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
     transition: 0.3s;
 }
@@ -25,19 +25,19 @@ button:disabled{
 
 
 
-#versionDisplay{
+/* #versionDisplay{
     font-size: 20px;
     font-weight: bold;
     text-align: center;
     margin-top: 20px;
-}
-#versionDisplay p{
+} */
+/* #versionDisplay p{
     font-size: 20px;
     font-weight: bold;
     color: #d1a30a;
     text-align: center;
     margin-top: 20px;
-}
+} */
 
 .terminal {
     cursor:copy;
@@ -53,13 +53,26 @@ button:disabled{
   pre{
     color: #ff914d;
     margin-bottom: 10px;
-    font-size: 10px;
+    font-size: 16px;
   }
 /* Add this CSS to your stylesheet */
 
 .dropdown-container {
     width: 100%;
     margin: 10px 0;
+}
+
+.keploylogo{
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    width: 100%;
+    height: 10%;
+    background-image: url("../keploylogo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 
@@ -81,7 +94,7 @@ button:disabled{
     display: none;
     grid-template-columns: 1fr 1fr;
     padding: 10px;
-    font-size: medium;
+    font-size: 18px;
 }
 
 .dropdown-content.show {
@@ -94,14 +107,14 @@ button:disabled{
     justify-content: center;
 }
 .info{
-    color: #d1a30a;
+    color: #FF914D;
     text-align: center;
     margin-top: 5px;
 }
 
 
 .success{
-    color: rgb(10, 223, 10);
+    color: #16704C;
     text-align: center;
     margin-top: 5px
 }
@@ -113,7 +126,7 @@ button:disabled{
 }
 
 .testSuccess{
-    color: rgb(10, 223, 10);
+    color: #16704C;
     text-align: left;
     margin-top: 5px;
     cursor: pointer;
@@ -127,7 +140,7 @@ button:disabled{
 }
 
 .testName{
-    color: #d1a30a;
+    color: #FF914D;
     text-align: left;
     margin-top: 5px;
     cursor: pointer;
@@ -163,14 +176,14 @@ button:disabled{
     margin-top: 5px;
     margin-bottom: 5px;
     text-align: center;
-    font-size: medium;
+    font-size: 18px;
 }
 #testSuiteName {
-    font-size: small;
+    font-size: 16px;
 }
 .homebutton{
     width: 30%;
-    font-size: small;
+    font-size: 16px;
     text-align: center;
     margin: 5px ;
     background-color: rgb(70, 70, 70);
@@ -251,7 +264,7 @@ button:disabled{
     height: 20px;
     margin-left: 10px;
     transition: transform 0.3s;
-    background: url('dropdown.png') no-repeat center center;
+    background: url('../dropdown.png') no-repeat center center;
     background-size: contain;
 }
 
@@ -262,7 +275,7 @@ button:disabled{
     width: 20px;
     height: 20px;
     transition: transform 0.3s;
-    background: url('settings.png') no-repeat center center;
+    background: url('../settings.png') no-repeat center center;
     background-size: contain;
 }
 .history-icon{
@@ -270,13 +283,13 @@ button:disabled{
     width: 20px;
     height: 20px;
     transition: transform 0.3s;
-    background: url('history.png') no-repeat center center;
+    background: url('../history.png') no-repeat center center;
     background-size: contain;
 
 }
 
 .image-container{
-    background: url('KeployIcon.png') no-repeat center center;
+    background: url('../KeployIcon.png') no-repeat center center;
     background-size: contain;
     position: relative;
     width: 90%;
@@ -291,13 +304,13 @@ button:disabled{
     width: 20px;
     height: 20px;
     transition: transform 0.3s;
-    background: url('replay.png') no-repeat center center;
+    background: url('../replay.png') no-repeat center center;
     background-size: contain;
     color: tomato;
 }
 
 .code-icon{
-    background: url("code-icon.png") no-repeat center center;
+    background: url("../code-icon.png") no-repeat center center;
     background-size: contain;
     width: 20px;
     height: 20px;
@@ -327,4 +340,5 @@ button:disabled{
     text-align: left;
     cursor: pointer;
 }
+
 
