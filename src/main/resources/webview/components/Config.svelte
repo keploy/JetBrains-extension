@@ -60,7 +60,7 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
-  
+
   .settings-item input {
     flex-grow: 1;
   }
@@ -78,7 +78,7 @@
 <body class="baloo-2-custom">
 <div class="keploylogo"></div>
 <div class="{showSettings ? 'container-hide' : 'container'}">
-  
+
   <div class="image-container">
   </div>
   <div class="get-started">Get Started</div>

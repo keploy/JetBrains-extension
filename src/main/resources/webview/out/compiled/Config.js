@@ -795,51 +795,51 @@ var app = (function () {
 				button1 = element("button");
 				button1.textContent = "Save Configuration";
 				attr_dev(div0, "class", "keploylogo");
-				add_location(div0, file, 78, 0, 1365);
+				add_location(div0, file, 78, 0, 1363);
 				attr_dev(div1, "class", "image-container");
-				add_location(div1, file, 81, 2, 1463);
-				attr_dev(div2, "class", "get-started svelte-rrj90q");
-				add_location(div2, file, 83, 2, 1504);
-				attr_dev(div3, "class", "description svelte-rrj90q");
-				add_location(div3, file, 84, 2, 1549);
-				attr_dev(button0, "class", "button svelte-rrj90q");
+				add_location(div1, file, 81, 2, 1459);
+				attr_dev(div2, "class", "get-started svelte-kbpmne");
+				add_location(div2, file, 83, 2, 1500);
+				attr_dev(div3, "class", "description svelte-kbpmne");
+				add_location(div3, file, 84, 2, 1545);
+				attr_dev(button0, "class", "button svelte-kbpmne");
 				attr_dev(button0, "id", "setupConfig");
-				add_location(button0, file, 87, 2, 1678);
-				attr_dev(div4, "class", div4_class_value = "" + (null_to_empty(/*showSettings*/ ctx[0] ? 'container-hide' : 'container') + " svelte-rrj90q"));
-				add_location(div4, file, 79, 0, 1396);
-				attr_dev(h1, "class", "heading svelte-rrj90q");
-				add_location(h1, file, 91, 2, 1857);
+				add_location(button0, file, 87, 2, 1674);
+				attr_dev(div4, "class", div4_class_value = "" + (null_to_empty(/*showSettings*/ ctx[0] ? 'container-hide' : 'container') + " svelte-kbpmne"));
+				add_location(div4, file, 79, 0, 1394);
+				attr_dev(h1, "class", "heading svelte-kbpmne");
+				add_location(h1, file, 91, 2, 1853);
 				attr_dev(div5, "class", "code-icon ");
 				attr_dev(div5, "alt", "Icon");
-				add_location(div5, file, 93, 4, 1946);
+				add_location(div5, file, 93, 4, 1942);
 				attr_dev(input0, "type", "text");
 				attr_dev(input0, "placeholder", "Enter Command to Run the Application");
 				attr_dev(input0, "id", "configCommand");
-				attr_dev(input0, "class", "svelte-rrj90q");
-				add_location(input0, file, 94, 4, 1993);
-				attr_dev(div6, "class", "settings-item svelte-rrj90q");
-				add_location(div6, file, 92, 2, 1914);
+				attr_dev(input0, "class", "svelte-kbpmne");
+				add_location(input0, file, 94, 4, 1989);
+				attr_dev(div6, "class", "settings-item svelte-kbpmne");
+				add_location(div6, file, 92, 2, 1910);
 				attr_dev(div7, "class", "code-icon ");
 				attr_dev(div7, "alt", "Icon");
-				add_location(div7, file, 97, 4, 2150);
+				add_location(div7, file, 97, 4, 2146);
 				attr_dev(input1, "type", "text");
 				attr_dev(input1, "placeholder", "Enter Application Path (default : './')");
 				attr_dev(input1, "id", "configPath");
-				attr_dev(input1, "class", "svelte-rrj90q");
-				add_location(input1, file, 98, 4, 2197);
-				attr_dev(div8, "class", "settings-item svelte-rrj90q");
-				add_location(div8, file, 96, 2, 2118);
-				attr_dev(button1, "class", "button svelte-rrj90q");
+				attr_dev(input1, "class", "svelte-kbpmne");
+				add_location(input1, file, 98, 4, 2193);
+				attr_dev(div8, "class", "settings-item svelte-kbpmne");
+				add_location(div8, file, 96, 2, 2114);
+				attr_dev(button1, "class", "button svelte-kbpmne");
 				attr_dev(button1, "id", "initialiseConfigButton");
-				add_location(button1, file, 100, 2, 2317);
+				add_location(button1, file, 100, 2, 2313);
 
 				attr_dev(div9, "class", div9_class_value = "" + (null_to_empty(/*showSettings*/ ctx[0]
 				? 'settings-container'
-				: 'container-hide') + " svelte-rrj90q"));
+				: 'container-hide') + " svelte-kbpmne"));
 
-				add_location(div9, file, 90, 0, 1784);
+				add_location(div9, file, 90, 0, 1780);
 				attr_dev(body, "class", "baloo-2-custom");
-				add_location(body, file, 77, 0, 1335);
+				add_location(body, file, 77, 0, 1333);
 			},
 			l: function claim(nodes) {
 				throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -885,7 +885,7 @@ var app = (function () {
 				}
 			},
 			p: function update(ctx, [dirty]) {
-				if (dirty & /*showSettings*/ 1 && div4_class_value !== (div4_class_value = "" + (null_to_empty(/*showSettings*/ ctx[0] ? 'container-hide' : 'container') + " svelte-rrj90q"))) {
+				if (dirty & /*showSettings*/ 1 && div4_class_value !== (div4_class_value = "" + (null_to_empty(/*showSettings*/ ctx[0] ? 'container-hide' : 'container') + " svelte-kbpmne"))) {
 					attr_dev(div4, "class", div4_class_value);
 				}
 
@@ -899,7 +899,7 @@ var app = (function () {
 
 				if (dirty & /*showSettings*/ 1 && div9_class_value !== (div9_class_value = "" + (null_to_empty(/*showSettings*/ ctx[0]
 				? 'settings-container'
-				: 'container-hide') + " svelte-rrj90q"))) {
+				: 'container-hide') + " svelte-kbpmne"))) {
 					attr_dev(div9, "class", div9_class_value);
 				}
 			},
