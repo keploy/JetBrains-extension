@@ -1,18 +1,39 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400..800&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="sidebar/sidebar.css" rel="stylesheet">
-    <link href="out/compiled/Config.css" rel="stylesheet">
-</head>
-<body>
+    <title>Keploy Setup</title>
+    <link rel="stylesheet" href="sidebar/sidebar.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="config.css">
 
+</head>
+<body class="baloo-2-custom">
+<div class="keploylogo"></div>
+<div id="container" class="container">
+    <div class="image-container"></div>
+    <div class="get-started">Get Started</div>
+    <div class="description">
+        Integrate Keploy by installing the open-source agent locally. No code-changes required.
+    </div>
+    <button class="button" id="setupConfig" onclick="handleSetupConfig()">Setup Keploy Config</button>
+</div>
+
+<div id="settingsContainer" class="settings-container container-hide">
+    <h1 class="heading">Initialise Keploy Config File</h1>
+    <div class="settings-item">
+        <div class="code-icon" alt="Icon"></div>
+        <input type="text" placeholder="Enter Command to Run the Application" id="configCommand">
+    </div>
+    <div class="settings-item">
+        <div class="code-icon" alt="Icon"></div>
+        <input type="text" placeholder="Enter Application Path (default : './')" id="configPath">
+    </div>
+    <button class="button" id="initialiseConfigButton">Save Configuration</button>
+</div>
+
+<script src="sidebar/sidebar.js"></script>
+<script src="config.js"></script>
 </body>
-<script  src="out/compiled/Config.js"></script>
-<script type="module"  src="sidebar/sidebar.js"></script>
-</html>`
+</html>
