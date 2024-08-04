@@ -18,29 +18,39 @@ case class KeployWindow(project: Project) {
   private lazy val webView: JBCefBrowser = {
     val browser = new JBCefBrowser()
     registerAppSchemeHandler()
-    val url = if (isKeployConfigPresent) "http://myapp/index.html" else "http://myapp/config.html"
+    val url = if (isKeployConfigPresent) "http://myapp/config.html" else "http://myapp/config.html"
     browser.loadURL(url)
     Disposer.register(project, browser)
 
     val client: JBCefClient = browser.getJBCefClient()
+    val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser)
+    println(jsQuery == null)
+    jsQuery.addHandler((query: String) => {
+      println(s"Query received: $query")
+      if (query == "initializeConfig") {
+        println("initializeConfig command received.")
+        initializeConfig()
+        //        jsQuery.createResponse("Config initialization request sent", 0)
+      } else {
+        //        jsQuery.createResponse("Unknown command", 1)
+      }
+      null;
+    })
     client.addLoadHandler(new CefLoadHandlerAdapter {
       override def onLoadEnd(browser: CefBrowser, frame: CefFrame, httpStatusCode: Int): Unit = {
         if (frame.isMain) {
           println("Main frame loaded.")
+
+          browser.executeJavaScript( // 4
+            "window.initializeConfig = function(query) {" +
+              jsQuery.inject("query") + // 5
+              "};",
+            frame.getURL(), 0
+          );
           val js = """
-            document.addEventListener("DOMContentLoaded", function() {
-              document.getElementById('initialiseConfigButton').addEventListener('click', function() {
-                window.cefQuery({
-                  request: 'initializeConfig',
-                  onSuccess: function(response) {
-                    console.log('Config initialization request sent successfully');
-                  },
-                  onFailure: function(error_code, error_message) {
-                    console.error('Config initialization request failed', error_code, error_message);
-                  }
-                });
+            document.getElementById('initialiseConfigButton').addEventListener('click', function() {
+  window.initializeConfig('initializeConfig');
               });
-            });
           """
           browser.executeJavaScript(js, frame.getURL, 0)
           println("JavaScript executed.")
@@ -48,18 +58,7 @@ case class KeployWindow(project: Project) {
       }
     }, browser.getCefBrowser)
 
-    val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser)
 
-    jsQuery.addHandler((query: String) => {
-      if (query == "initializeConfig") {
-        println("initializeConfig command received.")
-        initializeConfig()
-//        jsQuery.createResponse("Config initialization request sent", 0)
-      } else {
-//        jsQuery.createResponse("Unknown command", 1)
-      }
-      null;
-    })
     println("KeployWindow initialized.")
     browser
   }
@@ -155,6 +154,7 @@ case class KeployWindow(project: Project) {
   }
 
   private def openDocumentInEditor(doc: String): Unit = {
-    // logger.info("Document opened in the editor.")
+    println("Document opened in the editor.")
   }
 }
+

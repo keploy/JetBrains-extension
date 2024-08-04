@@ -1,10 +1,13 @@
-# CatViewer
-Example of creation plugin which use JCEF for IntelliJ. [Is part of blog post](https://medium.com/virtuslab/creating-intellij-plugin-with-webview-3b27c3f87aea).
+[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen?logo=github)](CODE_OF_CONDUCT.md) 
+[![Slack](.github/slack.svg)](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA)
+[![License](.github/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-## Build
-You need JDK- I have tested with 15.
-Later just:
-```bash
-./gradlew runIde
-```
-If you try to run it some time after publish, bump versions of gradle, scala and others. Or use Java 15.
+# Keploy
+[Keploy](https://keploy.io) is a no-code testing platform that generates tests from API calls. 
+
+
+## Community support
+We'd love to collaborate with you to make Keploy great. To get started:
+* [Slack](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA) - Discussions with the community and the team.
+* [GitHub](https://github.com/keploy/keploy/issues) - For bug reports and feature requests.
+
