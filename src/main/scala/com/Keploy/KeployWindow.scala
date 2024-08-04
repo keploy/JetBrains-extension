@@ -25,15 +25,13 @@ case class KeployWindow(project: Project) {
     val client: JBCefClient = browser.getJBCefClient()
     val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser)
     println(jsQuery == null)
-    jsQuery.addHandler((query: String) => {
-      println(s"Query received: $query")
-      if (query == "initializeConfig") {
+    jsQuery.addHandler((appCommandAndPath: String ) => {
+      println(s"appCommandAndPath received: $appCommandAndPath")
+      val appCommand = appCommandAndPath.split("@@")(0)
+      val path = appCommandAndPath.split("@@")(1)
         println("initializeConfig command received.")
-        initializeConfig()
-        //        jsQuery.createResponse("Config initialization request sent", 0)
-      } else {
-        //        jsQuery.createResponse("Unknown command", 1)
-      }
+        initializeConfig(appCommand, path)
+
       null;
     })
     client.addLoadHandler(new CefLoadHandlerAdapter {
@@ -42,14 +40,16 @@ case class KeployWindow(project: Project) {
           println("Main frame loaded.")
 
           browser.executeJavaScript( // 4
-            "window.initializeConfig = function(query) {" +
-              jsQuery.inject("query") + // 5
+            "window.initializeConfig = function(appCommandAndPath) {" +
+              jsQuery.inject("appCommandAndPath") + // 5
               "};",
             frame.getURL(), 0
           );
           val js = """
             document.getElementById('initialiseConfigButton').addEventListener('click', function() {
-  window.initializeConfig('initializeConfig');
+             var appCommand = document.getElementById('configCommand').value;
+          var path = document.getElementById('configPath').value;
+          window.initializeConfig(appCommand + "@@" + path);
               });
           """
           browser.executeJavaScript(js, frame.getURL, 0)
@@ -82,14 +82,18 @@ case class KeployWindow(project: Project) {
     exists
   }
 
-  private def initializeConfig(): Unit = {
+  private def initializeConfig(appCommand : String , path : String): Unit = {
     val folderPath = project.getBasePath
+    var contentPath = path
+    if (path == "") {
+      contentPath= "./"
+    }
     val configFilePath = Paths.get(folderPath, "keploy.yml")
     val content =
-      """
-        |path: "./"
+      s"""
+        |path: "$contentPath"
         |appId: ""
-        |command: ""
+        |command: "$appCommand"
         |port: 0
         |proxyPort: 16789
         |dnsPort: 26789
@@ -145,6 +149,7 @@ case class KeployWindow(project: Project) {
         openTask.onComplete {
           case Success(doc) =>
             openDocumentInEditor(doc)
+            webView.loadURL("http://myapp/index.html") // Load index.html after successful initialization
           case Failure(exception) =>
             println(s"Failed to open config file: ${exception.getMessage}")
         }
@@ -154,6 +159,18 @@ case class KeployWindow(project: Project) {
   }
 
   private def openDocumentInEditor(doc: String): Unit = {
+//  TODO: Implement
+    //    val projectBasePath = project.getBasePath
+//    val filePath = s"$projectBasePath/keploy.yml"
+//    val virtualFile: VirtualFile = VirtualFileManager.getInstance().refreshAndFindFileByUrl(s"file://$filePath")
+//
+//    if (virtualFile != null) {
+//      virtualFile.setBinaryContent(doc.getBytes)
+//      FileEditorManager.getInstance(project).openFile(virtualFile, true)
+//      println("Document opened in the editor.")
+//    } else {
+//      println("Failed to find or create the virtual file.")
+//    }
     println("Document opened in the editor.")
   }
 }
