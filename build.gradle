@@ -33,9 +33,18 @@ sourceSets {
 }
 
 dependencies {
-    implementation group: "org.scala-lang", name: "scala-library",  version: scalaVersion
-    implementation group: 'org.scala-lang', name: 'scala-reflect',  version: scalaVersion
+    implementation group: "org.scala-lang", name: "scala-library", version: scalaVersion
+    implementation group: 'org.scala-lang', name: 'scala-reflect', version: scalaVersion
+
+    // Jackson dependencies
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.15.2'
+    implementation group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.15.2'
+    implementation group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.13', version: '2.15.2'
+
+    // SnakeYAML dependency
+    implementation group: 'org.yaml', name: 'snakeyaml', version: '2.0'
 }
+
 
 intellij {
     version.set("2023.1.1")
