@@ -17,12 +17,89 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
-import java.util.Date
 import javax.swing.JComponent
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
+
+case class TestReport(
+                       version: String,
+                       name: String,
+                       status: String,
+                       success: Int,
+                       failure: Int,
+                       ignored: Int,
+                       total: Int,
+                       tests: List[Test],
+                       test_set: String
+                     )
+
+case class Test(
+                 kind: String,
+                 name: String,
+                 status: String,
+                 started: Long,
+                 completed: Long,
+                 test_case_path: String,
+                 mock_path: String,
+                 test_case_id: String,
+                 req: Request,
+                 resp: Response,
+                 noise: Map[String, List[Any]],
+                 result: TestResult
+               )
+
+case class Request(
+                    method: String,
+                    proto_major: Int,
+                    proto_minor: Int,
+                    url: String,
+                    header: Map[String, String],
+                    body: String,
+                    timestamp: String
+                  )
+
+case class Response(
+                     status_code: Int,
+                     header: Map[String, String],
+                     body: String,
+                     status_message: String,
+                     proto_major: Int,
+                     proto_minor: Int,
+                     timestamp: String
+                   )
+
+case class TestResult(
+                       status_code: StatusCodeResult,
+                       headers_result: List[HeaderResult],
+                       body_result: List[BodyResult],
+                       dep_result: List[Any]
+                     )
+
+case class StatusCodeResult(
+                             normal: Boolean,
+                             expected: Int,
+                             actual: Int
+                           )
+
+case class HeaderResult(
+                         normal: Boolean,
+                         expected: HeaderDetail,
+                         actual: HeaderDetail
+                       )
+
+case class HeaderDetail(
+                         key: String,
+                         value: List[String]
+                       )
+
+case class BodyResult(
+                       normal: Boolean,
+                       `type`: String,
+                       expected: String,
+                       actual: String
+                     )
 
 
 
@@ -56,7 +133,7 @@ case class KeployWindow(project: Project) {
       if (Files.exists(reportsFolderPath)) {
         val reportsFolder = new File(reportsFolderPath.toString)
         if (reportsFolder.listFiles().isEmpty) {
-          previousTestResultsHandler(0, 0, 0, isError = true, "No test reports found.", null)
+          aggregateTestResults(0, 0, 0, isError = true, "No test reports found.")
         } else {
           // Function to parse YAML
           val sortedReports = reportsFolder.listFiles().sortWith(_.lastModified() > _.lastModified())
@@ -66,7 +143,7 @@ case class KeployWindow(project: Project) {
           val testResults = scala.collection.mutable.ListBuffer[Map[String, String]]()
 
           val yaml = new Yaml()
-//          println("Reading test reports")
+          println("Reading test reports")
           sortedReports.foreach { testRunDir =>
             val testRunPath = Paths.get(reportsFolder.toString, testRunDir.getName)
             val testFiles = Files.list(testRunPath).iterator().asScala
@@ -75,18 +152,18 @@ case class KeployWindow(project: Project) {
             testFiles.foreach { testFile =>
               val testFilePath = testFile.toString
               val ios = Files.newInputStream(Paths.get(testFilePath))
-//              println(s"Reading test file: $testFilePath")
+              println(s"Reading test file: $testFilePath")
 //              println(fileContents)
               try {
                 val mapper = new ObjectMapper().registerModules(DefaultScalaModule)
                 val report = yaml.loadAs(ios, classOf[Any])
-//                println(s"Parsed report: $report")
+                println(s"Parsed report: $report")
                 val jsonString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report) // Formats YAML to a pretty printed JSON string - easy to read
                 val jsonObj = mapper.readTree(jsonString)
-//                println(s"JSON: $jsonObj")
-//                println(s"Success: ${jsonObj.get("success")}," +
-//                  s" Failure: ${jsonObj.get("failure")}," +
-//                  s" Total: ${jsonObj.get("total")}")
+                println(s"JSON: $jsonObj")
+                println(s"Success: ${jsonObj.get("success")}," +
+                  s" Failure: ${jsonObj.get("failure")}," +
+                  s" Total: ${jsonObj.get("total")}")
                 val success = jsonObj.get("success").asInt()
                 val failure = jsonObj.get("failure").asInt()
                 val total = jsonObj.get("total").asInt()
@@ -96,12 +173,10 @@ case class KeployWindow(project: Project) {
         val tests = jsonObj.get("tests")
                 if (tests != null) {
                   tests.forEach { test =>
-                    val req = test.get("req")
-                    val timestamp = req.get("timestamp").asText().toLong
-                    val date = new Date(timestamp)
+                    val date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(test.get("resp/timestamp").asText())
                     testResults += Map(
                       "date" -> new SimpleDateFormat("dd/MM/yyyy").format(date),
-                      "method" -> req.get("method").asText(),
+                      "method" -> test.get("req/method").asText(),
                       "name" -> test.get("test_case_id").asText(),
                       "report" -> test.get("name").asText(),
                       "status" -> test.get("status").asText(),
@@ -115,12 +190,13 @@ case class KeployWindow(project: Project) {
               }
             }
           }
-//          println(s"Final Aggregated Results - Success: $totalSuccess, Failure: $totalFailure, Total: $totalTests")
-          previousTestResultsHandler(totalSuccess, totalFailure, totalTests, isError = false, "Previous test results displayed.", testResults)
+
+          println(s"Final Aggregated Results - Success: $totalSuccess, Failure: $totalFailure, Total: $totalTests")
+          aggregateTestResults(totalSuccess, totalFailure, totalTests, isError = false, "Previous test results displayed.")
 
         }
       } else {
-        previousTestResultsHandler(0, 0, 0, isError = true, "Run keploy test to generate test reports." , null)
+        aggregateTestResults(0, 0, 0, isError = true, "Run keploy test to generate test reports.")
       }
       null
     })
@@ -257,37 +333,9 @@ case class KeployWindow(project: Project) {
     }
   }
 
-  private def previousTestResultsHandler(success: Int, failure: Int, total: Int, isError: Boolean, message: String, testResults: Any): Unit = {
-    val data = Map(
-      "type" -> "aggregatedTestResults",
-      "value" -> Map(
-        "total" -> total,
-        "success" -> success,
-        "failure" -> failure,
-        "error" -> isError,
-        "message" -> message,
-        "testResults" -> testResults
-      )
-    )
-
-    // Convert the Scala Map to JSON
-    val mapper = new ObjectMapper().registerModules(DefaultScalaModule)
-    val jsonData = mapper.writeValueAsString(data)
-
-    // Inject this JSON into JavaScript
-    webView.getCefBrowser.executeJavaScript(
-      s"""
-           handleDisplayPreviousTestResults($jsonData);
-        """, webView.getCefBrowser.getURL, 0)
-    println("Injected previous test results data into JavaScript.")
-    //call the JavaScript function to display the data
-    webView.getCefBrowser.executeJavaScript(
-      s"""
-           displayPreviousTestResults();
-        """, webView.getCefBrowser.getURL, 0)
-    println("Called JavaScript function to display previous test results.")
+  private def aggregateTestResults(success: Int, failure: Int, total: Int, isError: Boolean, message: String): Unit = {
+    println(s"Success: $success, Failure: $failure, Total: $total, isError: $isError, message: $message")
   }
-
 
   private def openDocumentInEditor(filePath: String): Unit = {
     ApplicationManager.getApplication().invokeLater(new Runnable {

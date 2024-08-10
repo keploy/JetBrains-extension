@@ -4,7 +4,7 @@
   <version>1.0</version>
 
   <description><![CDATA[
-    Your employer track every minute spent in browser? Use CatViewer in your IDE, and browse funny cats along you code!
+    Keploy : Generate e2e tests directly from your IDE!
   ]]></description>
 
   <idea-version since-build="201.6668.113"/>

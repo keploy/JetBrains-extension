@@ -1,0 +1,183 @@
+.container {
+    padding: 16px;
+}
+
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+    margin-top: 28px;
+    flex-direction: column;
+}
+
+.icon-buttons {
+    display: flex;
+    justify-content: space-around;
+    border: 2px solid;
+    border-color: var(--vscode-button-secondaryBackground);
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.icon-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--vscode-button-secondaryBackground);
+    border-radius: 5px;
+    color: #FF914D;
+    font-size: 24px;
+    height: 40px;
+    width: 80vw;
+    cursor: pointer;
+}
+
+.icon-button.selected {
+    background-color: #00163D;
+}
+
+.icon-button:hover {
+    color: #ff9933;
+    background-color: #606060;
+}
+
+.heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 24px;
+    margin: 0;
+}
+
+.section {
+    margin-bottom: 32px;
+}
+
+#testResults {
+    margin: 20px auto;
+    text-align: left;
+    display: grid;
+    place-items: center;
+    grid-template-columns: 1fr;
+}
+
+#testStatus {
+    text-align: center;
+    display: none;
+}
+
+#viewCompleteSummaryButton,
+#viewTestLogsButton,
+#viewRecordLogsButton {
+    display: none;
+    width: 100%;
+    margin: 10px auto;
+}
+
+#recordStatus {
+    display: none;
+    text-align: center;
+    margin: 20px;
+    font-weight: bold;
+}
+
+#recordedTestCases {
+    display: none;
+    grid-template-columns: 1fr;
+    place-items: center;
+}
+
+.statusdiv {
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+}
+
+.card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    margin-bottom: 16px;
+    background-color: #00163D;
+    color: #ff9933;
+    cursor: pointer;
+}
+
+.card:hover {
+    background-color: #ff9933;
+    color: #00163D;
+}
+
+.card-icon {
+    display: flex;
+    align-items: center;
+}
+
+.card-text {
+    font-size: 20px;
+}
+
+.card-arrow {
+    font-size: 24px;
+    color: #ff9933;
+}
+
+.card:hover .card-arrow {
+    color: #00163D;
+}
+
+.step {
+    display: none;
+    padding: 10px 0;
+    text-align: left;
+}
+
+.steps {
+    display: grid;
+    place-items: center;
+}
+
+#completeSummaryHr {
+    display: none;
+}
+
+.loader {
+    display: none;
+}
+
+.baloo-2-custom {
+    font-family: "Baloo 2", cursive;
+}
+
+.tooltip {
+    visibility: hidden;
+    width: 80px;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -40px;
+}
+
+.icon-button:hover .tooltip {
+    visibility: visible;
+}
+
+.stop-button {
+    cursor: pointer;
+}
+
+.stop-button:hover {
+    color: #ff9933;
+}

@@ -1,18 +1,93 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400..800&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="sidebar/sidebar.css" rel="stylesheet">
-    <link href="out/compiled/KeployHome.css" rel="stylesheet">
+    <title>Keploy Interface</title>
+    <link rel="stylesheet" href="sidebar/sidebar.css">
+    <link rel="stylesheet" href="KeployHome.css">
+
 </head>
 <body>
-
+<div class="container baloo-2-custom">
+    <div class="icon-buttons">
+        <button id="keploycommands" class="icon-button selected">
+            <span class="tooltip">Record/Replay</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="35px" height="35px" viewBox="0 0 24 24">
+                <path fill="#FF914D" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8s8 3.58 8 8s-3.58 8-8 8m4-4H8V8h8z"/>
+            </svg>
+        </button>
+        <button id="displayPreviousTestResults" class="icon-button">
+            <span class="history-icon"></span>
+            <span class="tooltip">History</span>
+        </button>
+        <button id="openConfig" class="icon-button">
+            <span class="settings-icon"></span>
+            <span class="tooltip">Settings</span>
+        </button>
+    </div>
+    <div class="header">
+        <div class="heading">
+            <h1>Running Keploy</h1>
+            <span class="stop-button" id="stopRecordingButton" role="button" tabindex="0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35px" height="35px" viewBox="0 0 24 24">
+                        <path fill="#FF914D" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8s8 3.58 8 8s-3.58 8-8 8m4-4H8V8h8z"/>
+                    </svg>
+                </span>
+            <span class="stop-button" id="stopTestingButton" role="button" tabindex="0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="35px" height="35px" viewBox="0 0 24 24">
+                        <path fill="#FF914D" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2m0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8s8 3.58 8 8s-3.58 8-8 8m4-4H8V8h8z"/>
+                    </svg>
+                </span>
+        </div>
+        <div class="statusdiv" id="statusdiv">
+            <h3 id="recordStatus"></h3>
+            <div id="recordedTestCases"></div>
+            <h3 id="testStatus"></h3>
+            <div id="testResults"></div>
+            <button id="viewCompleteSummaryButton">View Complete Test Summary</button>
+            <button id="viewTestLogsButton">View Logs</button>
+            <button id="viewRecordLogsButton">View Logs</button>
+            <hr id="completeSummaryHr" />
+        </div>
+    </div>
+    <div id="lastTestResults">
+        <h3 id="testSuiteName"></h3>
+    </div>
+    <div class="section" id="buttonsSection">
+        <div class="card" id="startRecordingButton" tabindex="0" role="button">
+            <div class="card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="35px" height="35px" viewBox="0 0 24 24">
+                    <path fill="#FF914D" d="M12 18c3.31 0 6-2.69 6-6s-2.69-6-6-6s-6 2.69-6 6s2.69 6 6 6" opacity="0.3"/>
+                    <path fill="#FF914D" d="M12 20c4.42 0 8-3.58 8-8s-3.58-8-8-8s-8 3.58-8 8s3.58 8 8 8m0-14c3.31 0 6 2.69 6 6s-2.69 6-6 6s-6-2.69-6-6s2.69-6 6-6"/>
+                </svg>
+            </div>
+            <div class="card-text">Record Test Cases</div>
+            <div class="card-arrow">➔</div>
+        </div>
+        <div class="card" id="startTestingButton" tabindex="0" role="button">
+            <div class="card-icon replay-icon"></div>
+            <div class="card-text">Replay Test Cases</div>
+            <div class="card-arrow">➔</div>
+        </div>
+    </div>
+    <div class="steps" id="steps">
+        <div id="recordingSteps">
+            <div class="step">Step 1: Make sure the database is running</div>
+            <div class="step">Step 2: The command is present in Config</div>
+            <div class="step">Step 3: Make API Calls</div>
+            <div class="step">Step 4: Save Recording</div>
+        </div>
+        <div id="replayingSteps">
+            <div class="step">Step 1: Initialize Replay</div>
+            <div class="step">Step 2: Running Test Cases</div>
+            <div class="step">Step 3: Execute Replay</div>
+            <div class="step">Step 4: Verify Test Results</div>
+        </div>
+    </div>
+    <div class="loader" id="loader"></div>
+</div>
+<script src="KeployHome.js"></script>
+<script src="sidebar/sidebar.js"></script>
 </body>
-<script  src="out/compiled/KeployHome.js"></script>
-<script type="module"  src="sidebar/sidebar.js"></script>
 </html>
