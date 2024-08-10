@@ -19,7 +19,6 @@ import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.Date
 import javax.swing.JComponent
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
@@ -403,7 +402,28 @@ case class KeployWindow(project: Project) {
     }
   }
 
-  private def previousTestResultsHandler(success: Int, failure: Int, total: Int, isError: Boolean, message: String, testResults: Any): Unit = {
+  import com.fasterxml.jackson.databind.ObjectMapper
+  import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
+  import scala.collection.mutable
+
+  case class TestResult(
+                         date: String,
+                         method: String,
+                         name: String,
+                         report: String,
+                         status: String,
+                         testCasePath: String
+                       )
+
+  private def previousTestResultsHandler(
+                                          success: Int,
+                                          failure: Int,
+                                          total: Int,
+                                          isError: Boolean,
+                                          message: String,
+                                          testResults: Any
+                                        ): Unit = {
     val data = Map(
       "type" -> "aggregatedTestResults",
       "value" -> Map(
@@ -421,160 +441,175 @@ case class KeployWindow(project: Project) {
     val jsonData = mapper.writeValueAsString(data)
     webView.getCefBrowser.executeJavaScript(
       s"""
-           const lastTestResultsDiv = document.getElementById('lastTestResults');
-        const totalTestCasesDiv = document.getElementById('totalTestCases');
-        const testSuiteNameDiv = document.getElementById('testSuiteName');
-        const testCasesPassedDiv = document.getElementById('testCasesPassed');
-        const testCasesFailedDiv = document.getElementById('testCasesFailed');
+       const lastTestResultsDiv = document.getElementById('lastTestResults');
+       const totalTestCasesDiv = document.getElementById('totalTestCases');
+       const testSuiteNameDiv = document.getElementById('testSuiteName');
+       const testCasesPassedDiv = document.getElementById('testCasesPassed');
+       const testCasesFailedDiv = document.getElementById('testCasesFailed');
 
-        // Clear previous content
-        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
-        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
-        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
-        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
-""" , webView.getCefBrowser.getURL, 0)
+       // Clear previous content
+       if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
+       if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
+       if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
+       if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
+    """, webView.getCefBrowser.getURL, 0
+    )
     println("Cleared UI")
-    if (isError) {
 
+    if (isError) {
       webView.getCefBrowser.executeJavaScript(
         s"""
-            if (lastTestResultsDiv) {
-                const errorElement = document.createElement('p');
-                errorElement.textContent = "No Test Runs Found";
-                errorElement.classList.add("error");
-                errorElement.id = "errorElement";
-                lastTestResultsDiv.appendChild(errorElement);
-            }
-        """, webView.getCefBrowser.getURL, 0)
+         if (lastTestResultsDiv) {
+           const errorElement = document.createElement('p');
+           errorElement.textContent = "No Test Runs Found";
+           errorElement.classList.add("error");
+           errorElement.id = "errorElement";
+           lastTestResultsDiv.appendChild(errorElement);
+         }
+      """, webView.getCefBrowser.getURL, 0
+      )
       println("No test reports found")
-    }else {
+    } else {
       val groupedResults = mutable.Map[String, mutable.Map[String, mutable.ListBuffer[TestResult]]]()
 
-      testResults.asInstanceOf[scala.collection.mutable.ListBuffer[Map[String, String]]].foreach { test  =>
-        val testResult = new TestResult
-        testResult.date = test("date")
-        testResult.method = test("method")
-        testResult.name = test("name")
-        testResult.report = test("report")
-        testResult.status = test("status")
-        testResult.testCasePath = test("testCasePath")
-        if (!groupedResults.contains(testResult.date)) {
-          groupedResults(testResult.date) = mutable.Map[String, mutable.ListBuffer[TestResult]]()
-        }
+      testResults.asInstanceOf[mutable.ListBuffer[Map[String, String]]].foreach { test =>
+        val testResult = TestResult(
+          date = test("date"),
+          method = test("method"),
+          name = test("name"),
+          report = test("report"),
+          status = test("status"),
+          testCasePath = test("testCasePath")
+        )
 
-        if (!groupedResults(testResult.date).contains(testResult.report)) {
-          groupedResults(testResult.date)(testResult.report) = mutable.ListBuffer[TestResult]()
-        }
-
-        groupedResults(testResult.date)(testResult.report) += testResult
+        groupedResults.getOrElseUpdate(testResult.date, mutable.Map.empty)
+          .getOrElseUpdate(testResult.report, mutable.ListBuffer.empty) += testResult
       }
-      // Convert mutable maps and list buffers to immutable maps and lists
-      groupedResults.map { case (date, reportsMap) =>
+
+      val immutableGroupedResults = groupedResults.map { case (date, reportsMap) =>
         date -> reportsMap.map { case (report, tests) =>
           report -> tests.toList
         }.toMap
       }.toMap
+
       webView.getCefBrowser.executeJavaScript(
         s"""
-             const dropdownContainer = document.createElement('div');
-        dropdownContainer.className = 'dropdown-container';
-               """ , webView.getCefBrowser.getURL, 0)
-        println("Created dropdown container")
-        groupedResults.foreach { case (date, reportsMap) =>
-            webView.getCefBrowser.executeJavaScript(
-                s"""
-                    const dropdownHeader = document.createElement('div');
-                    dropdownHeader.className = 'dropdown-header';
-                const currentDate = new Date();
-                const currentDateString = currentDate.toLocaleDateString();
+         const dropdownContainer = document.createElement('div');
+         dropdownContainer.className = 'dropdown-container';
+      """, webView.getCefBrowser.getURL, 0
+      )
+      println("Created dropdown container")
 
-                // Get yesterday's date
-                const yesterday = new Date(currentDate);
-                yesterday.setDate(currentDate.getDate() - 1);
-                const yesterdayDateString = yesterday.toLocaleDateString();
-
-                if (currentDateString === date) {
-                    dropdownHeader.textContent = `Today`;
-                } else if (yesterdayDateString === date) {
-                    dropdownHeader.textContent = `Yesterday`;
-                } else {
-                    dropdownHeader.textContent = `${date}`;
-                }
-                    const dropdownIcon = document.createElement('span');
-                    dropdownIcon.className = 'dropdown-icon';
-                    dropdownHeader.appendChild(dropdownIcon);
-                    dropdownHeader.onclick = () => {
-                        const content = document.getElementById(`dropdown${date}`);
-                        if (content) {
-                            content.classList.toggle('show');
-                            dropdownIcon.classList.toggle('open');
-                        }
-                    };
-                    const dropdownContent = document.createElement('div');
-                dropdownContent.id = `dropdown${date}`;
-                dropdownContent.className = 'dropdown-content';
-                    """ , webView.getCefBrowser.getURL, 0)
-            println("Created dropdown header")
-            reportsMap.foreach { case (report, tests) =>
-                webView.getCefBrowser.executeJavaScript(
-                s"""
-                     const reportDropdownHeader = document.createElement('div');
-                        reportDropdownHeader.className = 'dropdown-header';
-                        reportDropdownHeader.textContent = report;
-                        const reportDropdownIcon = document.createElement('span');
-                        reportDropdownIcon.className = 'dropdown-icon';
-
-                        reportDropdownHeader.appendChild(reportDropdownIcon);
-                        reportDropdownHeader.onclick = () => {
-                            const content = document.getElementById(`dropdown${date}${report}`);
-                            if (content) {
-                                content.classList.toggle('show');
-                                reportDropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
-                            }
-                        };
-
-                        const reportDropdownContent = document.createElement('div');
-                        reportDropdownContent.id = `dropdown${date}${report}`;
-                        reportDropdownContent.className = 'report-dropdown-content';
-                    """ , webView.getCefBrowser.getURL, 0)
-                println("Created report dropdown header")
-                reportsMap(report).foreach { test =>
-                    webView.getCefBrowser.executeJavaScript(
-                    s"""
-                        const testMethod = document.createElement('div');
-                        testMethod.textContent = `${test.method}`;
-                        if (`${test.status}` === 'PASSED') {
-                            testMethod.classList.add("testSuccess");
-                        } else {
-                            testMethod.classList.add("testError");
-                        }
-                        reportDropdownContent.appendChild(testMethod);
-
-                        const testName = document.createElement('div');
-                        testName.textContent = `${test.name}`;
-                        testName.classList.add("testName");
-                        reportDropdownContent.appendChild(testName);
-                        });
-                        dropdownContent.appendChild(reportDropdownHeader);
-                        dropdownContent.appendChild(reportDropdownContent);
-                    """ , webView.getCefBrowser.getURL, 0)
-                    println("Appended test content")
-                }
-                webView.getCefBrowser.executeJavaScript(
-                s"""
-                    dropdownContainer.appendChild(dropdownHeader);
-                    dropdownContainer.appendChild(dropdownContent);
-                    """ , webView.getCefBrowser.getURL, 0)
-                println("Appended dropdown content")
-            }
-            }
+      immutableGroupedResults.foreach { case (date, reportsMap) =>
         webView.getCefBrowser.executeJavaScript(
+          s"""
+           const dropdownHeader = document.createElement('div');
+           dropdownHeader.className = 'dropdown-header';
+           const currentDate = new Date();
+           const currentDateString = currentDate.toLocaleDateString();
+
+           const yesterday = new Date(currentDate);
+           yesterday.setDate(currentDate.getDate() - 1);
+           const yesterdayDateString = yesterday.toLocaleDateString();
+
+           if (currentDateString === "$date") {
+             dropdownHeader.textContent = "Today";
+           } else if (yesterdayDateString === "$date") {
+             dropdownHeader.textContent = "Yesterday";
+           } else {
+             dropdownHeader.textContent = "$date";
+           }
+
+           const dropdownIcon = document.createElement('span');
+           dropdownIcon.className = 'dropdown-icon';
+           dropdownHeader.appendChild(dropdownIcon);
+           dropdownHeader.onclick = () => {
+             const content = document.getElementById('dropdown$date');
+             if (content) {
+               content.classList.toggle('show');
+               dropdownIcon.classList.toggle('open');
+             }
+           };
+           const dropdownContent = document.createElement('div');
+           dropdownContent.id = 'dropdown$date';
+           dropdownContent.className = 'dropdown-content';
+        """, webView.getCefBrowser.getURL, 0
+        )
+        println("Created dropdown header")
+
+        reportsMap.foreach { case (report, tests) =>
+          webView.getCefBrowser.executeJavaScript(
+            s"""
+             const reportDropdownHeader = document.createElement('div');
+             reportDropdownHeader.className = 'dropdown-header';
+             reportDropdownHeader.textContent = "$report";
+             const reportDropdownIcon = document.createElement('span');
+             reportDropdownIcon.className = 'dropdown-icon';
+
+             reportDropdownHeader.appendChild(reportDropdownIcon);
+             reportDropdownHeader.onclick = () => {
+               const content = document.getElementById('dropdown$date$report');
+               if (content) {
+                 content.classList.toggle('show');
+                 reportDropdownIcon.classList.toggle('open');
+               }
+             };
+
+             const reportDropdownContent = document.createElement('div');
+             reportDropdownContent.id = 'dropdown$date$report';
+             reportDropdownContent.className = 'report-dropdown-content';
+          """, webView.getCefBrowser.getURL, 0
+          )
+          println("Created report dropdown header")
+
+          tests.foreach { test =>
+            webView.getCefBrowser.executeJavaScript(
+              s"""
+               const testMethod = document.createElement('div');
+               testMethod.textContent = "${test.method}";
+               if ("${test.status}" === 'PASSED') {
+                 testMethod.classList.add("testSuccess");
+               } else {
+                 testMethod.classList.add("testError");
+               }
+               reportDropdownContent.appendChild(testMethod);
+
+               const testName = document.createElement('div');
+               testName.textContent = "${test.name}";
+               testName.classList.add("testName");
+               reportDropdownContent.appendChild(testName);
+            """, webView.getCefBrowser.getURL, 0
+            )
+            println("Appended test content")
+          }
+
+          webView.getCefBrowser.executeJavaScript(
+            s"""
+             dropdownContent.appendChild(reportDropdownHeader);
+             dropdownContent.appendChild(reportDropdownContent);
+          """, webView.getCefBrowser.getURL, 0
+          )
+          println("Appended report dropdown content")
+        }
+
+        webView.getCefBrowser.executeJavaScript(
+          s"""
+           dropdownContainer.appendChild(dropdownHeader);
+           dropdownContainer.appendChild(dropdownContent);
+        """, webView.getCefBrowser.getURL, 0
+        )
+        println("Appended dropdown content")
+      }
+
+      webView.getCefBrowser.executeJavaScript(
         s"""
-            if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
-            """ , webView.getCefBrowser.getURL, 0)
-        println("Appended dropdown container")
+         if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
+      """, webView.getCefBrowser.getURL, 0
+      )
+      println("Appended dropdown container")
     }
-    }
+  }
+
 
 
   private def openDocumentInEditor(filePath: String): Unit = {
