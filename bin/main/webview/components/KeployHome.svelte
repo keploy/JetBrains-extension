@@ -1,45 +1,5 @@
 <script>
   import { fly } from 'svelte/transition';
-  // import { onMount } from 'svelte';
-  // import lottie from 'lottie-web';
-
-  // const intro = 60; // final frame of the intro sequence
-  // const stopFrame = 180; // final frame of the stop icon appearing
-  // const recFrame = 240; // final frame of the record frame appearing (last frame which matches the intro frame to ensure it loops)
-
-  // let animationWindow;
-  // let anim;
-
-  // onMount(() => {
-  //   anim = lottie.loadAnimation({
-  //     container: animationWindow,
-  //     renderer: 'svg',
-  //     loop: false,
-  //     autoplay: true,
-  //     // we play the intro immediately
-  //     initialSegment: [0, intro],
-  //     path: 'https://assets.codepen.io/35984/record_button.json'
-  //   });
-
-  //   anim.setSpeed(1.61);
-
-  //   const onClick = (e) => {
-  //     if (anim.currentFrame > intro && anim.currentFrame <= stopFrame - intro - 1) {
-  //       console.log('playing from stop to record');
-  //       anim.playSegments([stopFrame, recFrame], true);
-  //     } else {
-  //       console.log('playing to stop icon');
-  //       anim.playSegments([intro, stopFrame], true);
-  //     }
-  //   };
-
-  //   // animationWindow.addEventListener('click', onClick);
-
-  //   return () => {
-  //     animationWindow.removeEventListener('click', onClick);
-  //     anim.destroy();
-  //   };
-  // });
 
   let startRecordingButton;
   let startTestingButton;

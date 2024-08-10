@@ -17,89 +17,12 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
+import java.util.Date
 import javax.swing.JComponent
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
-
-case class TestReport(
-                       version: String,
-                       name: String,
-                       status: String,
-                       success: Int,
-                       failure: Int,
-                       ignored: Int,
-                       total: Int,
-                       tests: List[Test],
-                       test_set: String
-                     )
-
-case class Test(
-                 kind: String,
-                 name: String,
-                 status: String,
-                 started: Long,
-                 completed: Long,
-                 test_case_path: String,
-                 mock_path: String,
-                 test_case_id: String,
-                 req: Request,
-                 resp: Response,
-                 noise: Map[String, List[Any]],
-                 result: TestResult
-               )
-
-case class Request(
-                    method: String,
-                    proto_major: Int,
-                    proto_minor: Int,
-                    url: String,
-                    header: Map[String, String],
-                    body: String,
-                    timestamp: String
-                  )
-
-case class Response(
-                     status_code: Int,
-                     header: Map[String, String],
-                     body: String,
-                     status_message: String,
-                     proto_major: Int,
-                     proto_minor: Int,
-                     timestamp: String
-                   )
-
-case class TestResult(
-                       status_code: StatusCodeResult,
-                       headers_result: List[HeaderResult],
-                       body_result: List[BodyResult],
-                       dep_result: List[Any]
-                     )
-
-case class StatusCodeResult(
-                             normal: Boolean,
-                             expected: Int,
-                             actual: Int
-                           )
-
-case class HeaderResult(
-                         normal: Boolean,
-                         expected: HeaderDetail,
-                         actual: HeaderDetail
-                       )
-
-case class HeaderDetail(
-                         key: String,
-                         value: List[String]
-                       )
-
-case class BodyResult(
-                       normal: Boolean,
-                       `type`: String,
-                       expected: String,
-                       actual: String
-                     )
 
 
 
@@ -115,6 +38,7 @@ case class KeployWindow(project: Project) {
 
     val client: JBCefClient = browser.getJBCefClient()
     val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryPrevTests: JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
     jsQuery.addHandler((appCommandAndPath: String) => {
       val Array(appCommand, path) = appCommandAndPath.split("@@")
@@ -127,13 +51,13 @@ case class KeployWindow(project: Project) {
       openDocumentInEditor(Paths.get(project.getBasePath, "keploy.yml").toString)
       null
     })
-    jsQuery.addHandler((_: String) => {
+    jsQueryPrevTests.addHandler((_: String) => {
       println("Displaying previous test results")
       val reportsFolderPath = Paths.get(project.getBasePath, "/keploy/reports")
       if (Files.exists(reportsFolderPath)) {
         val reportsFolder = new File(reportsFolderPath.toString)
         if (reportsFolder.listFiles().isEmpty) {
-          aggregateTestResults(0, 0, 0, isError = true, "No test reports found.")
+          previousTestResultsHandler(0, 0, 0, isError = true, "No test reports found.", null)
         } else {
           // Function to parse YAML
           val sortedReports = reportsFolder.listFiles().sortWith(_.lastModified() > _.lastModified())
@@ -143,7 +67,7 @@ case class KeployWindow(project: Project) {
           val testResults = scala.collection.mutable.ListBuffer[Map[String, String]]()
 
           val yaml = new Yaml()
-          println("Reading test reports")
+//          println("Reading test reports")
           sortedReports.foreach { testRunDir =>
             val testRunPath = Paths.get(reportsFolder.toString, testRunDir.getName)
             val testFiles = Files.list(testRunPath).iterator().asScala
@@ -152,18 +76,18 @@ case class KeployWindow(project: Project) {
             testFiles.foreach { testFile =>
               val testFilePath = testFile.toString
               val ios = Files.newInputStream(Paths.get(testFilePath))
-              println(s"Reading test file: $testFilePath")
+//              println(s"Reading test file: $testFilePath")
 //              println(fileContents)
               try {
                 val mapper = new ObjectMapper().registerModules(DefaultScalaModule)
                 val report = yaml.loadAs(ios, classOf[Any])
-                println(s"Parsed report: $report")
+//                println(s"Parsed report: $report")
                 val jsonString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report) // Formats YAML to a pretty printed JSON string - easy to read
                 val jsonObj = mapper.readTree(jsonString)
-                println(s"JSON: $jsonObj")
-                println(s"Success: ${jsonObj.get("success")}," +
-                  s" Failure: ${jsonObj.get("failure")}," +
-                  s" Total: ${jsonObj.get("total")}")
+//                println(s"JSON: $jsonObj")
+//                println(s"Success: ${jsonObj.get("success")}," +
+//                  s" Failure: ${jsonObj.get("failure")}," +
+//                  s" Total: ${jsonObj.get("total")}")
                 val success = jsonObj.get("success").asInt()
                 val failure = jsonObj.get("failure").asInt()
                 val total = jsonObj.get("total").asInt()
@@ -173,10 +97,12 @@ case class KeployWindow(project: Project) {
         val tests = jsonObj.get("tests")
                 if (tests != null) {
                   tests.forEach { test =>
-                    val date = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(test.get("resp/timestamp").asText())
+                    val req = test.get("req")
+                    val timestamp = req.get("timestamp").asText().toLong
+                    val date = new Date(timestamp)
                     testResults += Map(
                       "date" -> new SimpleDateFormat("dd/MM/yyyy").format(date),
-                      "method" -> test.get("req/method").asText(),
+                      "method" -> req.get("method").asText(),
                       "name" -> test.get("test_case_id").asText(),
                       "report" -> test.get("name").asText(),
                       "status" -> test.get("status").asText(),
@@ -190,13 +116,12 @@ case class KeployWindow(project: Project) {
               }
             }
           }
-
-          println(s"Final Aggregated Results - Success: $totalSuccess, Failure: $totalFailure, Total: $totalTests")
-          aggregateTestResults(totalSuccess, totalFailure, totalTests, isError = false, "Previous test results displayed.")
+//          println(s"Final Aggregated Results - Success: $totalSuccess, Failure: $totalFailure, Total: $totalTests")
+          previousTestResultsHandler(totalSuccess, totalFailure, totalTests, isError = false, "Previous test results displayed.", testResults)
 
         }
       } else {
-        aggregateTestResults(0, 0, 0, isError = true, "Run keploy test to generate test reports.")
+        previousTestResultsHandler(0, 0, 0, isError = true, "Run keploy test to generate test reports." , null)
       }
       null
     })
@@ -211,9 +136,11 @@ case class KeployWindow(project: Project) {
             frame.getURL(), 0
           )
 
+
+
           browser.executeJavaScript(
             "window.historyPage = function() {" +
-              jsQuery.inject("historyPage") +
+              jsQueryPrevTests.inject("historyPage") +
               "};",
             frame.getURL(), 0
           )
@@ -233,6 +160,141 @@ case class KeployWindow(project: Project) {
             """
           browser.executeJavaScript(configInitializeJs, frame.getURL, 0)
 
+          val displayPreviousTestResultsJs =
+            """
+              function window.handleDisplayPreviousTestResults(message){
+          document.getElementById('displayPreviousTestResults').style.display = 'none';
+
+
+        const lastTestResultsDiv = document.getElementById('lastTestResults');
+        const totalTestCasesDiv = document.getElementById('totalTestCases');
+        const testSuiteNameDiv = document.getElementById('testSuiteName');
+        const testCasesPassedDiv = document.getElementById('testCasesPassed');
+        const testCasesFailedDiv = document.getElementById('testCasesFailed');
+
+        // Clear previous content
+        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
+        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
+        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
+        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
+
+        if (message.error === true) {
+
+            if (lastTestResultsDiv) {
+                const errorElement = document.createElement('p');
+                errorElement.textContent = "No Test Runs Found";
+                errorElement.classList.add("error");
+                errorElement.id = "errorElement";
+                lastTestResultsDiv.appendChild(errorElement);
+            }
+        } else {
+            // Group tests by date
+            const testsByDate = {};
+            message.data.testResults.forEach(test => {
+                const date = test.date;
+                if (!testsByDate[date]) {
+                    testsByDate[date] = [];
+                }
+                testsByDate[date].push(test);
+            });
+
+
+            const testCasesTotalElement = document.createElement('p');
+            testCasesTotalElement.textContent = `Total Test Cases : ${message.data.total}`;
+            if (totalTestCasesDiv) { totalTestCasesDiv.appendChild(testCasesTotalElement); }
+
+            const testCasesPassedElement = document.createElement('p');
+            testCasesPassedElement.textContent = `Test Cases Passed : ${message.data.success}`;
+            if (testCasesPassedDiv) { testCasesPassedDiv.appendChild(testCasesPassedElement); }
+
+            const testCasesFailedElement = document.createElement('p');
+            testCasesFailedElement.textContent = `Test Cases Failed : ${message.data.failure}`;
+            if (testCasesFailedDiv) { testCasesFailedDiv.appendChild(testCasesFailedElement); }
+
+            // Create and append dropdown structure based on testsByDate
+            const dropdownContainer = document.createElement('div');
+            dropdownContainer.className = 'dropdown-container';
+
+            for (const date in testsByDate) {
+                if (testsByDate.hasOwnProperty(date)) {
+                    const tests = testsByDate[date];
+
+                    const dropdownHeader = document.createElement('div');
+                    dropdownHeader.className = 'dropdown-header';
+
+                    // Get current date
+                    const currentDate = new Date();
+                    const currentDateString = formatDate(currentDate);
+
+                    // Get yesterday's date
+                    const yesterday = new Date(currentDate);
+                    yesterday.setDate(currentDate.getDate() - 1);
+                    const yesterdayDateString = formatDate(yesterday);
+
+                    if (currentDateString === date) {
+                        dropdownHeader.textContent = `Today`;
+                    } else if (yesterdayDateString === date) {
+                        dropdownHeader.textContent = `Yesterday`;
+                    } else {
+                        dropdownHeader.textContent = `${date}`;
+                    }
+
+                    // Add dropdown icon
+                    const dropdownIcon = document.createElement('span');
+                    dropdownIcon.className = 'dropdown-icon';
+
+                    dropdownHeader.appendChild(dropdownIcon);
+                    dropdownHeader.onclick = () => {
+                        const content = document.getElementById(`dropdown${date}`);
+                        if (content) {
+                            content.classList.toggle('show');
+                            dropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
+                        }
+                    };
+
+                    const dropdownContent = document.createElement('div');
+                    dropdownContent.id = `dropdown${date}`;
+                    dropdownContent.className = 'dropdown-content';
+                    tests.forEach((test, index) => {
+                        // Append individual test details
+                        const testMethod = document.createElement('div');
+                        testMethod.textContent = `${test.method}`;
+                        if (test.status === 'PASSED') {
+                            testMethod.classList.add("testSuccess");
+                        } else {
+                            testMethod.classList.add("testError");
+                        }
+                        dropdownContent.appendChild(testMethod);
+
+                        const testName = document.createElement('div');
+                        testName.textContent = `${test.name}`;
+                        testName.classList.add("testName");
+                        dropdownContent.appendChild(testName);
+
+                        testName.addEventListener('click', async () => {
+                            vscode.postMessage({
+                                type: "openTestFile",
+                                value: test.testCasePath
+                            });
+                        });
+                        testMethod.addEventListener('click', async () => {
+                            vscode.postMessage({
+                                type: "openTestFile",
+                                value: test.testCasePath
+                            });
+                        });
+                    });
+
+                    dropdownContainer.appendChild(dropdownHeader);
+                    dropdownContainer.appendChild(dropdownContent);
+                }
+            }
+
+            if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
+        }
+    }
+            """
+            browser.executeJavaScript(displayPreviousTestResultsJs, frame.getURL, 0)
           val historyPageJs =
             """
               document.getElementById('displayPreviousTestResults').addEventListener('click', function() {
@@ -333,9 +395,58 @@ case class KeployWindow(project: Project) {
     }
   }
 
-  private def aggregateTestResults(success: Int, failure: Int, total: Int, isError: Boolean, message: String): Unit = {
-    println(s"Success: $success, Failure: $failure, Total: $total, isError: $isError, message: $message")
+  private def previousTestResultsHandler(success: Int, failure: Int, total: Int, isError: Boolean, message: String, testResults: Any): Unit = {
+    val data = Map(
+      "type" -> "aggregatedTestResults",
+      "value" -> Map(
+        "total" -> total,
+        "success" -> success,
+        "failure" -> failure,
+        "error" -> isError,
+        "message" -> message,
+        "testResults" -> testResults
+      )
+    )
+
+    // Convert the Scala Map to JSON
+    val mapper = new ObjectMapper().registerModules(DefaultScalaModule)
+    val jsonData = mapper.writeValueAsString(data)
+    webView.getCefBrowser.executeJavaScript(
+      s"""
+           const lastTestResultsDiv = document.getElementById('lastTestResults');
+        const totalTestCasesDiv = document.getElementById('totalTestCases');
+        const testSuiteNameDiv = document.getElementById('testSuiteName');
+        const testCasesPassedDiv = document.getElementById('testCasesPassed');
+        const testCasesFailedDiv = document.getElementById('testCasesFailed');
+
+        // Clear previous content
+        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
+        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
+        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
+        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
+""" , webView.getCefBrowser.getURL, 0)
+    println("Cleared UI")
+    if (isError) {
+
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+            if (lastTestResultsDiv) {
+                const errorElement = document.createElement('p');
+                errorElement.textContent = "No Test Runs Found";
+                errorElement.classList.add("error");
+                errorElement.id = "errorElement";
+                lastTestResultsDiv.appendChild(errorElement);
+            }
+        """, webView.getCefBrowser.getURL, 0)
+      println("No test reports found")
+    }else {
+        webView.getCefBrowser.executeJavaScript(
+            s"""
+               """ , webView.getCefBrowser.getURL, 0)
+    }
+
   }
+
 
   private def openDocumentInEditor(filePath: String): Unit = {
     ApplicationManager.getApplication().invokeLater(new Runnable {

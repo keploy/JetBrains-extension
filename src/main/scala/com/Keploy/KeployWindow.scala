@@ -19,13 +19,21 @@ import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.Date
 import javax.swing.JComponent
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 
-
+class TestResult {
+  var date: String = _
+  var method: String = _
+  var name: String = _
+  var report: String = _
+  var status: String = _
+  var testCasePath: String = _
+}
 
 case class KeployWindow(project: Project) {
 
@@ -38,6 +46,7 @@ case class KeployWindow(project: Project) {
 
     val client: JBCefClient = browser.getJBCefClient()
     val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryPrevTests: JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
     jsQuery.addHandler((appCommandAndPath: String) => {
       val Array(appCommand, path) = appCommandAndPath.split("@@")
@@ -50,7 +59,7 @@ case class KeployWindow(project: Project) {
       openDocumentInEditor(Paths.get(project.getBasePath, "keploy.yml").toString)
       null
     })
-    jsQuery.addHandler((_: String) => {
+    jsQueryPrevTests.addHandler((_: String) => {
       println("Displaying previous test results")
       val reportsFolderPath = Paths.get(project.getBasePath, "/keploy/reports")
       if (Files.exists(reportsFolderPath)) {
@@ -135,9 +144,11 @@ case class KeployWindow(project: Project) {
             frame.getURL(), 0
           )
 
+
+
           browser.executeJavaScript(
             "window.historyPage = function() {" +
-              jsQuery.inject("historyPage") +
+              jsQueryPrevTests.inject("historyPage") +
               "};",
             frame.getURL(), 0
           )
@@ -157,6 +168,141 @@ case class KeployWindow(project: Project) {
             """
           browser.executeJavaScript(configInitializeJs, frame.getURL, 0)
 
+          val displayPreviousTestResultsJs =
+            """
+              function window.handleDisplayPreviousTestResults(message){
+          document.getElementById('displayPreviousTestResults').style.display = 'none';
+
+
+        const lastTestResultsDiv = document.getElementById('lastTestResults');
+        const totalTestCasesDiv = document.getElementById('totalTestCases');
+        const testSuiteNameDiv = document.getElementById('testSuiteName');
+        const testCasesPassedDiv = document.getElementById('testCasesPassed');
+        const testCasesFailedDiv = document.getElementById('testCasesFailed');
+
+        // Clear previous content
+        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
+        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
+        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
+        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
+
+        if (message.error === true) {
+
+            if (lastTestResultsDiv) {
+                const errorElement = document.createElement('p');
+                errorElement.textContent = "No Test Runs Found";
+                errorElement.classList.add("error");
+                errorElement.id = "errorElement";
+                lastTestResultsDiv.appendChild(errorElement);
+            }
+        } else {
+            // Group tests by date
+            const testsByDate = {};
+            message.data.testResults.forEach(test => {
+                const date = test.date;
+                if (!testsByDate[date]) {
+                    testsByDate[date] = [];
+                }
+                testsByDate[date].push(test);
+            });
+
+
+            const testCasesTotalElement = document.createElement('p');
+            testCasesTotalElement.textContent = `Total Test Cases : ${message.data.total}`;
+            if (totalTestCasesDiv) { totalTestCasesDiv.appendChild(testCasesTotalElement); }
+
+            const testCasesPassedElement = document.createElement('p');
+            testCasesPassedElement.textContent = `Test Cases Passed : ${message.data.success}`;
+            if (testCasesPassedDiv) { testCasesPassedDiv.appendChild(testCasesPassedElement); }
+
+            const testCasesFailedElement = document.createElement('p');
+            testCasesFailedElement.textContent = `Test Cases Failed : ${message.data.failure}`;
+            if (testCasesFailedDiv) { testCasesFailedDiv.appendChild(testCasesFailedElement); }
+
+            // Create and append dropdown structure based on testsByDate
+            const dropdownContainer = document.createElement('div');
+            dropdownContainer.className = 'dropdown-container';
+
+            for (const date in testsByDate) {
+                if (testsByDate.hasOwnProperty(date)) {
+                    const tests = testsByDate[date];
+
+                    const dropdownHeader = document.createElement('div');
+                    dropdownHeader.className = 'dropdown-header';
+
+                    // Get current date
+                    const currentDate = new Date();
+                    const currentDateString = formatDate(currentDate);
+
+                    // Get yesterday's date
+                    const yesterday = new Date(currentDate);
+                    yesterday.setDate(currentDate.getDate() - 1);
+                    const yesterdayDateString = formatDate(yesterday);
+
+                    if (currentDateString === date) {
+                        dropdownHeader.textContent = `Today`;
+                    } else if (yesterdayDateString === date) {
+                        dropdownHeader.textContent = `Yesterday`;
+                    } else {
+                        dropdownHeader.textContent = `${date}`;
+                    }
+
+                    // Add dropdown icon
+                    const dropdownIcon = document.createElement('span');
+                    dropdownIcon.className = 'dropdown-icon';
+
+                    dropdownHeader.appendChild(dropdownIcon);
+                    dropdownHeader.onclick = () => {
+                        const content = document.getElementById(`dropdown${date}`);
+                        if (content) {
+                            content.classList.toggle('show');
+                            dropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
+                        }
+                    };
+
+                    const dropdownContent = document.createElement('div');
+                    dropdownContent.id = `dropdown${date}`;
+                    dropdownContent.className = 'dropdown-content';
+                    tests.forEach((test, index) => {
+                        // Append individual test details
+                        const testMethod = document.createElement('div');
+                        testMethod.textContent = `${test.method}`;
+                        if (test.status === 'PASSED') {
+                            testMethod.classList.add("testSuccess");
+                        } else {
+                            testMethod.classList.add("testError");
+                        }
+                        dropdownContent.appendChild(testMethod);
+
+                        const testName = document.createElement('div');
+                        testName.textContent = `${test.name}`;
+                        testName.classList.add("testName");
+                        dropdownContent.appendChild(testName);
+
+                        testName.addEventListener('click', async () => {
+                            vscode.postMessage({
+                                type: "openTestFile",
+                                value: test.testCasePath
+                            });
+                        });
+                        testMethod.addEventListener('click', async () => {
+                            vscode.postMessage({
+                                type: "openTestFile",
+                                value: test.testCasePath
+                            });
+                        });
+                    });
+
+                    dropdownContainer.appendChild(dropdownHeader);
+                    dropdownContainer.appendChild(dropdownContent);
+                }
+            }
+
+            if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
+        }
+    }
+            """
+            browser.executeJavaScript(displayPreviousTestResultsJs, frame.getURL, 0)
           val historyPageJs =
             """
               document.getElementById('displayPreviousTestResults').addEventListener('click', function() {
@@ -273,20 +419,162 @@ case class KeployWindow(project: Project) {
     // Convert the Scala Map to JSON
     val mapper = new ObjectMapper().registerModules(DefaultScalaModule)
     val jsonData = mapper.writeValueAsString(data)
+    webView.getCefBrowser.executeJavaScript(
+      s"""
+           const lastTestResultsDiv = document.getElementById('lastTestResults');
+        const totalTestCasesDiv = document.getElementById('totalTestCases');
+        const testSuiteNameDiv = document.getElementById('testSuiteName');
+        const testCasesPassedDiv = document.getElementById('testCasesPassed');
+        const testCasesFailedDiv = document.getElementById('testCasesFailed');
 
-    // Inject this JSON into JavaScript
-    webView.getCefBrowser.executeJavaScript(
-      s"""
-           handleDisplayPreviousTestResults($jsonData);
+        // Clear previous content
+        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
+        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
+        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
+        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
+""" , webView.getCefBrowser.getURL, 0)
+    println("Cleared UI")
+    if (isError) {
+
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+            if (lastTestResultsDiv) {
+                const errorElement = document.createElement('p');
+                errorElement.textContent = "No Test Runs Found";
+                errorElement.classList.add("error");
+                errorElement.id = "errorElement";
+                lastTestResultsDiv.appendChild(errorElement);
+            }
         """, webView.getCefBrowser.getURL, 0)
-    println("Injected previous test results data into JavaScript.")
-    //call the JavaScript function to display the data
-    webView.getCefBrowser.executeJavaScript(
-      s"""
-           displayPreviousTestResults();
-        """, webView.getCefBrowser.getURL, 0)
-    println("Called JavaScript function to display previous test results.")
-  }
+      println("No test reports found")
+    }else {
+      val groupedResults = mutable.Map[String, mutable.Map[String, mutable.ListBuffer[TestResult]]]()
+
+      testResults.asInstanceOf[scala.collection.mutable.ListBuffer[Map[String, String]]].foreach { test  =>
+        val testResult = new TestResult
+        testResult.date = test("date")
+        testResult.method = test("method")
+        testResult.name = test("name")
+        testResult.report = test("report")
+        testResult.status = test("status")
+        testResult.testCasePath = test("testCasePath")
+        if (!groupedResults.contains(testResult.date)) {
+          groupedResults(testResult.date) = mutable.Map[String, mutable.ListBuffer[TestResult]]()
+        }
+
+        if (!groupedResults(testResult.date).contains(testResult.report)) {
+          groupedResults(testResult.date)(testResult.report) = mutable.ListBuffer[TestResult]()
+        }
+
+        groupedResults(testResult.date)(testResult.report) += testResult
+      }
+      // Convert mutable maps and list buffers to immutable maps and lists
+      groupedResults.map { case (date, reportsMap) =>
+        date -> reportsMap.map { case (report, tests) =>
+          report -> tests.toList
+        }.toMap
+      }.toMap
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+             const dropdownContainer = document.createElement('div');
+        dropdownContainer.className = 'dropdown-container';
+               """ , webView.getCefBrowser.getURL, 0)
+        println("Created dropdown container")
+        groupedResults.foreach { case (date, reportsMap) =>
+            webView.getCefBrowser.executeJavaScript(
+                s"""
+                    const dropdownHeader = document.createElement('div');
+                    dropdownHeader.className = 'dropdown-header';
+                const currentDate = new Date();
+                const currentDateString = currentDate.toLocaleDateString();
+
+                // Get yesterday's date
+                const yesterday = new Date(currentDate);
+                yesterday.setDate(currentDate.getDate() - 1);
+                const yesterdayDateString = yesterday.toLocaleDateString();
+
+                if (currentDateString === date) {
+                    dropdownHeader.textContent = `Today`;
+                } else if (yesterdayDateString === date) {
+                    dropdownHeader.textContent = `Yesterday`;
+                } else {
+                    dropdownHeader.textContent = `${date}`;
+                }
+                    const dropdownIcon = document.createElement('span');
+                    dropdownIcon.className = 'dropdown-icon';
+                    dropdownHeader.appendChild(dropdownIcon);
+                    dropdownHeader.onclick = () => {
+                        const content = document.getElementById(`dropdown${date}`);
+                        if (content) {
+                            content.classList.toggle('show');
+                            dropdownIcon.classList.toggle('open');
+                        }
+                    };
+                    const dropdownContent = document.createElement('div');
+                dropdownContent.id = `dropdown${date}`;
+                dropdownContent.className = 'dropdown-content';
+                    """ , webView.getCefBrowser.getURL, 0)
+            println("Created dropdown header")
+            reportsMap.foreach { case (report, tests) =>
+                webView.getCefBrowser.executeJavaScript(
+                s"""
+                     const reportDropdownHeader = document.createElement('div');
+                        reportDropdownHeader.className = 'dropdown-header';
+                        reportDropdownHeader.textContent = report;
+                        const reportDropdownIcon = document.createElement('span');
+                        reportDropdownIcon.className = 'dropdown-icon';
+
+                        reportDropdownHeader.appendChild(reportDropdownIcon);
+                        reportDropdownHeader.onclick = () => {
+                            const content = document.getElementById(`dropdown${date}${report}`);
+                            if (content) {
+                                content.classList.toggle('show');
+                                reportDropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
+                            }
+                        };
+
+                        const reportDropdownContent = document.createElement('div');
+                        reportDropdownContent.id = `dropdown${date}${report}`;
+                        reportDropdownContent.className = 'report-dropdown-content';
+                    """ , webView.getCefBrowser.getURL, 0)
+                println("Created report dropdown header")
+                reportsMap(report).foreach { test =>
+                    webView.getCefBrowser.executeJavaScript(
+                    s"""
+                        const testMethod = document.createElement('div');
+                        testMethod.textContent = `${test.method}`;
+                        if (`${test.status}` === 'PASSED') {
+                            testMethod.classList.add("testSuccess");
+                        } else {
+                            testMethod.classList.add("testError");
+                        }
+                        reportDropdownContent.appendChild(testMethod);
+
+                        const testName = document.createElement('div');
+                        testName.textContent = `${test.name}`;
+                        testName.classList.add("testName");
+                        reportDropdownContent.appendChild(testName);
+                        });
+                        dropdownContent.appendChild(reportDropdownHeader);
+                        dropdownContent.appendChild(reportDropdownContent);
+                    """ , webView.getCefBrowser.getURL, 0)
+                    println("Appended test content")
+                }
+                webView.getCefBrowser.executeJavaScript(
+                s"""
+                    dropdownContainer.appendChild(dropdownHeader);
+                    dropdownContainer.appendChild(dropdownContent);
+                    """ , webView.getCefBrowser.getURL, 0)
+                println("Appended dropdown content")
+            }
+            }
+        webView.getCefBrowser.executeJavaScript(
+        s"""
+            if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
+            """ , webView.getCefBrowser.getURL, 0)
+        println("Appended dropdown container")
+    }
+    }
 
 
   private def openDocumentInEditor(filePath: String): Unit = {
