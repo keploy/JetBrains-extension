@@ -10,6 +10,7 @@
   <idea-version since-build="201.6668.113"/>
 
   <depends>com.intellij.modules.platform</depends>
+  <depends>org.jetbrains.plugins.terminal</depends>
 
 
   <extensions defaultExtensionNs="com.intellij">

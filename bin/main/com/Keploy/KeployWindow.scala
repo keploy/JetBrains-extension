@@ -8,24 +8,33 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.{LocalFileSystem, VirtualFile}
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.jcef.{JBCefBrowser, JBCefClient, JBCefJSQuery}
 import org.cef.CefApp
 import org.cef.browser.{CefBrowser, CefFrame}
 import org.cef.handler.CefLoadHandlerAdapter
+import org.jetbrains.plugins.terminal.{ShellTerminalWidget, TerminalToolWindowFactory, TerminalToolWindowManager}
 import org.yaml.snakeyaml.Yaml
 
-import java.io.File
+import java.io.{File, IOException}
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.Date
-import javax.swing.JComponent
+import javax.swing.{JComponent, SwingUtilities}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 
-
+class TestResult {
+  var date: String = _
+  var method: String = _
+  var name: String = _
+  var report: String = _
+  var status: String = _
+  var testCasePath: String = _
+}
 
 case class KeployWindow(project: Project) {
 
@@ -40,6 +49,14 @@ case class KeployWindow(project: Project) {
     val jsQuery: JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryPrevTests: JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryRecordTests : JBCefJSQuery = JBCefJSQuery.create(browser)
+
+    jsQueryRecordTests.addHandler((_: String) => {
+      println("Recording test cases")
+      openTerminalAndExecuteCommand("ng help")
+      null
+    })
+
     jsQuery.addHandler((appCommandAndPath: String) => {
       val Array(appCommand, path) = appCommandAndPath.split("@@")
       initializeConfig(appCommand, path)
@@ -150,6 +167,12 @@ case class KeployWindow(project: Project) {
               "};",
             frame.getURL(), 0
           )
+          browser.executeJavaScript(
+            "window.recordTestCases = function() {" +
+              jsQueryRecordTests.inject("recordTestCases") +
+              "};",
+            frame.getURL(), 0
+          )
           val configInitializeJs =
             """
               document.getElementById('initialiseConfigButton').addEventListener('click', function() {
@@ -160,141 +183,7 @@ case class KeployWindow(project: Project) {
             """
           browser.executeJavaScript(configInitializeJs, frame.getURL, 0)
 
-          val displayPreviousTestResultsJs =
-            """
-              function window.handleDisplayPreviousTestResults(message){
-          document.getElementById('displayPreviousTestResults').style.display = 'none';
 
-
-        const lastTestResultsDiv = document.getElementById('lastTestResults');
-        const totalTestCasesDiv = document.getElementById('totalTestCases');
-        const testSuiteNameDiv = document.getElementById('testSuiteName');
-        const testCasesPassedDiv = document.getElementById('testCasesPassed');
-        const testCasesFailedDiv = document.getElementById('testCasesFailed');
-
-        // Clear previous content
-        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
-        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
-        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
-        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
-
-        if (message.error === true) {
-
-            if (lastTestResultsDiv) {
-                const errorElement = document.createElement('p');
-                errorElement.textContent = "No Test Runs Found";
-                errorElement.classList.add("error");
-                errorElement.id = "errorElement";
-                lastTestResultsDiv.appendChild(errorElement);
-            }
-        } else {
-            // Group tests by date
-            const testsByDate = {};
-            message.data.testResults.forEach(test => {
-                const date = test.date;
-                if (!testsByDate[date]) {
-                    testsByDate[date] = [];
-                }
-                testsByDate[date].push(test);
-            });
-
-
-            const testCasesTotalElement = document.createElement('p');
-            testCasesTotalElement.textContent = `Total Test Cases : ${message.data.total}`;
-            if (totalTestCasesDiv) { totalTestCasesDiv.appendChild(testCasesTotalElement); }
-
-            const testCasesPassedElement = document.createElement('p');
-            testCasesPassedElement.textContent = `Test Cases Passed : ${message.data.success}`;
-            if (testCasesPassedDiv) { testCasesPassedDiv.appendChild(testCasesPassedElement); }
-
-            const testCasesFailedElement = document.createElement('p');
-            testCasesFailedElement.textContent = `Test Cases Failed : ${message.data.failure}`;
-            if (testCasesFailedDiv) { testCasesFailedDiv.appendChild(testCasesFailedElement); }
-
-            // Create and append dropdown structure based on testsByDate
-            const dropdownContainer = document.createElement('div');
-            dropdownContainer.className = 'dropdown-container';
-
-            for (const date in testsByDate) {
-                if (testsByDate.hasOwnProperty(date)) {
-                    const tests = testsByDate[date];
-
-                    const dropdownHeader = document.createElement('div');
-                    dropdownHeader.className = 'dropdown-header';
-
-                    // Get current date
-                    const currentDate = new Date();
-                    const currentDateString = formatDate(currentDate);
-
-                    // Get yesterday's date
-                    const yesterday = new Date(currentDate);
-                    yesterday.setDate(currentDate.getDate() - 1);
-                    const yesterdayDateString = formatDate(yesterday);
-
-                    if (currentDateString === date) {
-                        dropdownHeader.textContent = `Today`;
-                    } else if (yesterdayDateString === date) {
-                        dropdownHeader.textContent = `Yesterday`;
-                    } else {
-                        dropdownHeader.textContent = `${date}`;
-                    }
-
-                    // Add dropdown icon
-                    const dropdownIcon = document.createElement('span');
-                    dropdownIcon.className = 'dropdown-icon';
-
-                    dropdownHeader.appendChild(dropdownIcon);
-                    dropdownHeader.onclick = () => {
-                        const content = document.getElementById(`dropdown${date}`);
-                        if (content) {
-                            content.classList.toggle('show');
-                            dropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
-                        }
-                    };
-
-                    const dropdownContent = document.createElement('div');
-                    dropdownContent.id = `dropdown${date}`;
-                    dropdownContent.className = 'dropdown-content';
-                    tests.forEach((test, index) => {
-                        // Append individual test details
-                        const testMethod = document.createElement('div');
-                        testMethod.textContent = `${test.method}`;
-                        if (test.status === 'PASSED') {
-                            testMethod.classList.add("testSuccess");
-                        } else {
-                            testMethod.classList.add("testError");
-                        }
-                        dropdownContent.appendChild(testMethod);
-
-                        const testName = document.createElement('div');
-                        testName.textContent = `${test.name}`;
-                        testName.classList.add("testName");
-                        dropdownContent.appendChild(testName);
-
-                        testName.addEventListener('click', async () => {
-                            vscode.postMessage({
-                                type: "openTestFile",
-                                value: test.testCasePath
-                            });
-                        });
-                        testMethod.addEventListener('click', async () => {
-                            vscode.postMessage({
-                                type: "openTestFile",
-                                value: test.testCasePath
-                            });
-                        });
-                    });
-
-                    dropdownContainer.appendChild(dropdownHeader);
-                    dropdownContainer.appendChild(dropdownContent);
-                }
-            }
-
-            if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
-        }
-    }
-            """
-            browser.executeJavaScript(displayPreviousTestResultsJs, frame.getURL, 0)
           val historyPageJs =
             """
               document.getElementById('displayPreviousTestResults').addEventListener('click', function() {
@@ -309,6 +198,14 @@ case class KeployWindow(project: Project) {
               });
               """
             browser.executeJavaScript(openConfigJs, frame.getURL, 0)
+
+          val recordTestCasesJs =
+            """
+              document.getElementById('startRecordingButton').addEventListener('click', function() {
+              window.recordTestCases();
+              });
+            """
+            browser.executeJavaScript(recordTestCasesJs, frame.getURL, 0)
         }
       }
     }, browser.getCefBrowser)
@@ -325,7 +222,32 @@ case class KeployWindow(project: Project) {
       new CustomSchemeHandlerFactory
     )
   }
+  private def openTerminalAndExecuteCommand(command: String): Unit = {
+    SwingUtilities.invokeLater(new Runnable {
+      override def run(): Unit = {
+        try {
+          val terminalView = TerminalToolWindowManager.getInstance(project)
+          val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TerminalToolWindowFactory.TOOL_WINDOW_ID)
+          if (toolWindow == null) {
+            throw new IllegalStateException("Terminal tool window not found")
+          }
 
+          val contentManager = toolWindow.getContentManager
+          val content = contentManager.findContent("Keploy")
+          val shellTerminalWidget = if (content == null) {
+            terminalView.createLocalShellWidget(project.getBasePath, "Keploy")
+          } else {
+            TerminalToolWindowManager.getWidgetByContent(content).asInstanceOf[ShellTerminalWidget]
+          }
+
+          shellTerminalWidget.executeCommand(command)
+        } catch {
+          case e: IOException => e.printStackTrace()
+          case e: Exception => e.printStackTrace()
+        }
+      }
+    })
+  }
   private def isKeployConfigPresent: Boolean = {
     val configPath = Paths.get(project.getBasePath, "keploy.yml")
     Files.exists(configPath)
@@ -395,7 +317,28 @@ case class KeployWindow(project: Project) {
     }
   }
 
-  private def previousTestResultsHandler(success: Int, failure: Int, total: Int, isError: Boolean, message: String, testResults: Any): Unit = {
+  import com.fasterxml.jackson.databind.ObjectMapper
+  import com.fasterxml.jackson.module.scala.DefaultScalaModule
+
+  import scala.collection.mutable
+
+  case class TestResult(
+                         date: String,
+                         method: String,
+                         name: String,
+                         report: String,
+                         status: String,
+                         testCasePath: String
+                       )
+
+  private def previousTestResultsHandler(
+                                          success: Int,
+                                          failure: Int,
+                                          total: Int,
+                                          isError: Boolean,
+                                          message: String,
+                                          testResults: Any
+                                        ): Unit = {
     val data = Map(
       "type" -> "aggregatedTestResults",
       "value" -> Map(
@@ -413,39 +356,180 @@ case class KeployWindow(project: Project) {
     val jsonData = mapper.writeValueAsString(data)
     webView.getCefBrowser.executeJavaScript(
       s"""
-           const lastTestResultsDiv = document.getElementById('lastTestResults');
-        const totalTestCasesDiv = document.getElementById('totalTestCases');
-        const testSuiteNameDiv = document.getElementById('testSuiteName');
-        const testCasesPassedDiv = document.getElementById('testCasesPassed');
-        const testCasesFailedDiv = document.getElementById('testCasesFailed');
+       const lastTestResultsDiv = document.getElementById('lastTestResults');
+       const totalTestCasesDiv = document.getElementById('totalTestCases');
+       const testSuiteNameDiv = document.getElementById('testSuiteName');
+       const testCasesPassedDiv = document.getElementById('testCasesPassed');
+       const testCasesFailedDiv = document.getElementById('testCasesFailed');
 
-        // Clear previous content
-        if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
-        if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
-        if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
-        if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
-""" , webView.getCefBrowser.getURL, 0)
+       // Clear previous content
+       if (totalTestCasesDiv) { totalTestCasesDiv.innerHTML = ''; }
+       if (testSuiteNameDiv) { testSuiteNameDiv.innerHTML = ''; }
+       if (testCasesPassedDiv) { testCasesPassedDiv.innerHTML = ''; }
+       if (testCasesFailedDiv) { testCasesFailedDiv.innerHTML = ''; }
+    """, webView.getCefBrowser.getURL, 0
+    )
     println("Cleared UI")
+
     if (isError) {
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+         if (lastTestResultsDiv) {
+           const errorElement = document.createElement('p');
+           errorElement.textContent = "No Test Runs Found";
+           errorElement.classList.add("error");
+           errorElement.id = "errorElement";
+           lastTestResultsDiv.appendChild(errorElement);
+         }
+      """, webView.getCefBrowser.getURL, 0
+      )
+      println("No test reports found")
+    } else {
+      val groupedResults = mutable.Map[String, mutable.Map[String, mutable.ListBuffer[TestResult]]]()
+
+      testResults.asInstanceOf[mutable.ListBuffer[Map[String, String]]].foreach { test =>
+        val testResult = TestResult(
+          date = test("date"),
+          method = test("method"),
+          name = test("name"),
+          report = test("report"),
+          status = test("status"),
+          testCasePath = test("testCasePath")
+        )
+
+        groupedResults.getOrElseUpdate(testResult.date, mutable.Map.empty)
+          .getOrElseUpdate(testResult.report, mutable.ListBuffer.empty) += testResult
+      }
+
+      val immutableGroupedResults = groupedResults.map { case (date, reportsMap) =>
+        date -> reportsMap.map { case (report, tests) =>
+          report -> tests.toList
+        }.toMap
+      }.toMap
+
+      println(immutableGroupedResults)
 
       webView.getCefBrowser.executeJavaScript(
         s"""
-            if (lastTestResultsDiv) {
-                const errorElement = document.createElement('p');
-                errorElement.textContent = "No Test Runs Found";
-                errorElement.classList.add("error");
-                errorElement.id = "errorElement";
-                lastTestResultsDiv.appendChild(errorElement);
-            }
-        """, webView.getCefBrowser.getURL, 0)
-      println("No test reports found")
-    }else {
-        webView.getCefBrowser.executeJavaScript(
-            s"""
-               """ , webView.getCefBrowser.getURL, 0)
-    }
+         const dropdownContainer = document.createElement('div');
+         dropdownContainer.className = 'dropdown-container';
+      """, webView.getCefBrowser.getURL, 0
+      )
+      println("Created dropdown container")
 
+      immutableGroupedResults.foreach { case (date, reportsMap) =>
+        println("Creating dropdown content for date: " + date)
+        webView.getCefBrowser.executeJavaScript(
+          s"""
+           const dropdownHeader = document.createElement('div');
+           dropdownHeader.className = 'dropdown-header';
+           const currentDate = new Date();
+           const currentDateString = currentDate.toLocaleDateString();
+
+           const yesterday = new Date(currentDate);
+           yesterday.setDate(currentDate.getDate() - 1);
+           const yesterdayDateString = yesterday.toLocaleDateString();
+
+           if (currentDateString === "$date") {
+             dropdownHeader.textContent = "Today";
+           } else if (yesterdayDateString === "$date") {
+             dropdownHeader.textContent = "Yesterday";
+           } else {
+             dropdownHeader.textContent = "$date";
+           }
+
+           const dropdownIcon = document.createElement('span');
+           dropdownIcon.className = 'dropdown-icon';
+           dropdownHeader.appendChild(dropdownIcon);
+           dropdownHeader.onclick = () => {
+             const content = document.getElementById('dropdown$date');
+             if (content) {
+               content.classList.toggle('show');
+               dropdownIcon.classList.toggle('open');
+             }
+           };
+           const dropdownContent = document.createElement('div');
+           dropdownContent.id = 'dropdown$date';
+           dropdownContent.className = 'dropdown-content';
+        """, webView.getCefBrowser.getURL, 0
+        )
+        println("Created dropdown header")
+
+        reportsMap.foreach { case (report, tests) =>
+            println("Creating report dropdown content for report: " + report)
+          webView.getCefBrowser.executeJavaScript(
+            s"""
+             const reportDropdownHeader = document.createElement('div');
+             reportDropdownHeader.className = 'dropdown-header';
+             reportDropdownHeader.textContent = "$report";
+             const reportDropdownIcon = document.createElement('span');
+             reportDropdownIcon.className = 'dropdown-icon';
+
+             reportDropdownHeader.appendChild(reportDropdownIcon);
+             reportDropdownHeader.onclick = () => {
+               const content = document.getElementById('dropdown$date$report');
+               if (content) {
+                 content.classList.toggle('show');
+                 reportDropdownIcon.classList.toggle('open');
+               }
+             };
+
+             const reportDropdownContent = document.createElement('div');
+             reportDropdownContent.id = 'dropdown$date$report';
+             reportDropdownContent.className = 'report-dropdown-content';
+          """, webView.getCefBrowser.getURL, 0
+          )
+          println("Created report dropdown header")
+
+          tests.foreach { test =>
+            println("Creating test content for test: " + test.name)
+            webView.getCefBrowser.executeJavaScript(
+              s"""
+               const testMethod = document.createElement('div');
+               testMethod.textContent = "${test.method}";
+               if ("${test.status}" === 'PASSED') {
+                 testMethod.classList.add("testSuccess");
+               } else {
+                 testMethod.classList.add("testError");
+               }
+               reportDropdownContent.appendChild(testMethod);
+
+               const testName = document.createElement('div');
+               testName.textContent = "${test.name}";
+               testName.classList.add("testName");
+               reportDropdownContent.appendChild(testName);
+            """, webView.getCefBrowser.getURL, 0
+            )
+            println("Appended test content for test: " + test.name)
+          }
+
+          webView.getCefBrowser.executeJavaScript(
+            s"""
+             dropdownContent.appendChild(reportDropdownHeader);
+             dropdownContent.appendChild(reportDropdownContent);
+          """, webView.getCefBrowser.getURL, 0
+          )
+          println("Appended report dropdown content")
+        }
+
+        webView.getCefBrowser.executeJavaScript(
+          s"""
+           dropdownContainer.appendChild(dropdownHeader);
+           dropdownContainer.appendChild(dropdownContent);
+        """, webView.getCefBrowser.getURL, 0
+        )
+        println("Appended dropdown content")
+      }
+
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+         if (lastTestResultsDiv) { lastTestResultsDiv.appendChild(dropdownContainer); }
+      """, webView.getCefBrowser.getURL, 0
+      )
+      println("Appended dropdown container")
+    }
   }
+
 
 
   private def openDocumentInEditor(filePath: String): Unit = {
