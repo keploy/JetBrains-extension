@@ -25,6 +25,7 @@ import javax.swing.{JComponent, SwingUtilities}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
+import scala.util.matching.Regex
 import scala.util.{Failure, Properties, Success}
 
 case class KeployWindow(project: Project) {
@@ -43,6 +44,15 @@ case class KeployWindow(project: Project) {
     val jsQueryRecordTests : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryReplayTests : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryCloseTerminal : JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryOpenLog : JBCefJSQuery = JBCefJSQuery.create(browser)
+
+    jsQueryOpenLog.addHandler((logPath: String) => {
+      //copy it to a .log file
+        val logFile = logPath.replace(".tmp", ".log")
+        Files.copy(Paths.get(logPath), Paths.get(logFile))
+      openDocumentInEditor(logFile)
+      null
+    })
 
     jsQueryRecordTests.addHandler((_: String) => {
       println("Recording test cases")
@@ -203,9 +213,19 @@ case class KeployWindow(project: Project) {
               "};",
             frame.getURL(), 0
           )
+
+
+
           browser.executeJavaScript(
             "window.replayTestCases = function() {" +
               jsQueryReplayTests.inject("replayTestCases") +
+              "};",
+            frame.getURL(), 0
+          )
+
+          browser.executeJavaScript(
+            "window.openLogFile = function(logPath) {" +
+              jsQueryOpenLog.inject("logPath") +
               "};",
             frame.getURL(), 0
           )
@@ -390,26 +410,96 @@ case class KeployWindow(project: Project) {
               override def allSessionsClosed(terminalWidget: TerminalWidget) = {
                 terminalWidget.removeListener(this)
                 println("Closing terminal")
+                var terminalLogFile = logFile
+                if (isWindows) {
+                  terminalLogFile = terminalLogFile.replace("/mnt/c", "C:")
+                }
                 if (isRecording) {
                   println("Recording completed")
+
+                  //add event listener to viewRecordLogsButton
                   webView.getCefBrowser.executeJavaScript(
                     s"""
-                     const recordLog = document.getElementById('recordLog');
-                     recordLog.textContent = "Recording completed. Check the log file for more details.";
-                  """, webView.getCefBrowser.getURL, 0
+                         const viewRecordLogsButton = document.getElementById('viewRecordLogsButton');
+                         viewRecordLogsButton.addEventListener('click', function() {
+                         window.openLogFile("${terminalLogFile}");
+                         });
+                    """, webView.getCefBrowser.getURL, 0
                   )
+
+                  val logData = Files.readAllLines(Paths.get(terminalLogFile)).toArray.mkString("\n")
+                  val testSetName = extractTestSetName(logData)
+                  val logLines = logData.split("\n")
+                  val capturedTestLines = logLines.filter(line => line.contains("🟠 Keploy has captured test cases"))
+                  if (capturedTestLines.length == 0) {
+                    println("No test cases captured")
+                    displayRecordedTestCases("No test cases captured", noTestCases = true, path = null, testSetName = null)
+                  } else {
+                    println("Test cases captured")
+                    capturedTestLines.foreach(testLine => {
+                      //                        val testCaseInfo = JSON.parse(testLine.substring(testLine.indexOf('{')));
+                      //                          val testCaseInfo = testLine.split("🟠 Keploy has captured test cases for the user's application.")(1)
+                      val testSetPath = testLine.split("path: ")(1).split("/tests")(0)
+                      val testSetName = testSetPath.split("/")(1)
+                      println(s"Test set path: $testSetPath")
+                      println(s"Test set name: $testSetName")
+                      displayRecordedTestCases(testSetName, noTestCases = false, path = testSetPath, testSetName = testSetName)
+                    })
+                  }
                 } else if (isReplaying) {
                   println("Replaying completed")
                   webView.getCefBrowser.executeJavaScript(
                     s"""
-                     const replayLog = document.getElementById('replayLog');
-                     replayLog.textContent = "Replaying completed. Check the log file for more details.";
-                  """, webView.getCefBrowser.getURL, 0
+                         const viewTestLogsButton = document.getElementById('viewTestLogsButton');
+                         viewTestLogsButton.addEventListener('click', function() {
+                         window.openLogFile("${terminalLogFile}");
+                         });
+                    """, webView.getCefBrowser.getURL, 0
                   )
+
+                  val logData = Files.readAllLines(Paths.get(terminalLogFile)).toArray.mkString("\n")
+                  val logLines = logData.split("\n")
+                  val startIndex = logLines.indexWhere(line => line.contains("COMPLETE TESTRUN SUMMARY."))
+                  if (startIndex == -1) {
+                    println("Start index not found")
+                    displayTestResults("No test results found", isError = true, null)
+                    //TODO : Find a way to break here
+                  }
+                  val endIndex = logLines.indexWhere((line) => line.contains("<=========================================>"))
+                  if (endIndex == -1) {
+                    println("End index not found")
+                    displayTestResults("No test results found", isError = true, null)
+
+                  }
+                  val testResults = logLines.slice(startIndex, endIndex + 1)
+                  //join the test results with \n
+                  val testResultsString = testResults.mkString("\n")
+                  if (testResultsString.isEmpty) {
+                    println("No test results found")
+                    displayTestResults("No test results found", isError = true, null)
+                  } else {
+                    println("Test results found")
+//                    val ansiRegex: Regex = """[\u001B\u009B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]""".r
+                    val ansiRegex: Regex = """[\u001B\u009B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]]""".r
+
+                    val cleanSummary = ansiRegex.replaceAllIn(testResultsString, "")
+                    println(cleanSummary)
+
+                    val testSummaryList = cleanSummary.split('\n').toBuffer
+                    println(testSummaryList)
+
+                    // Remove last line of summary which is pattern
+                    testSummaryList.remove(testSummaryList.length - 1)
+
+                    // Remove first line of summary which is header
+                    testSummaryList.remove(0)
+
+//                    TODO: Implement Complete Summary
+                    displayTestResults("Test results found", isError = false, testSummaryList)
+                  }
                 }
-              }
-            })
-          }
+              }})
+        }
         } catch {
           case e: IOException => e.printStackTrace()
           case e: Exception => e.printStackTrace()
@@ -419,7 +509,16 @@ case class KeployWindow(project: Project) {
   }
 
 
+  private def extractTestSetName(logContent: String): Option[String] = {
+    // Define the regular expression pattern to find the test set name
+    val regex = """Keploy has captured test cases for the user's application\.\s*\{"path": ".*\/(test-set-\d+)\/tests"""".r
 
+    // Execute the regular expression on the log content
+    val matcher = regex.findFirstMatchIn(logContent)
+
+      // Check if a match was found and return the test set name, otherwise return None
+    matcher.map(_.group(1))
+  }
   private def isKeployConfigPresent: Boolean = {
     val configPath = Paths.get(project.getBasePath, "keploy.yml")
     Files.exists(configPath)
@@ -703,9 +802,57 @@ case class KeployWindow(project: Project) {
       println("Appended dropdown container")
     }
   }
+  private def displayRecordedTestCases (recordedTestSetName: String, noTestCases: Boolean , path: String , testSetName: String): Unit = {
+    webView.getCefBrowser.executeJavaScript(
+      s"""
+          const recordStatus = document.getElementById('recordStatus');
+          const recordedTestCasesDiv = document.getElementById('recordedTestCases');
+      recordStatus.style.display = "block";
+    recordedTestCasesDiv.style.display = "grid";
+      """, webView.getCefBrowser.getURL, 0
+    )
+    if (noTestCases) {
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+          recordStatus.textContent = `Failed To Record Test Cases`;
+        recordStatus.classList.add("error");
+        const errorMessage = document.createElement('p');
+        viewRecordLogsButton.style.display = "block";
+         """, webView.getCefBrowser.getURL, 0
+      )
+    } else {
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+         const replayLog = document.getElementById('replayLog');
+         replayLog.textContent = "Test cases captured for test set: $recordedTestSetName. Click on the test set to view the test cases.";
+      """, webView.getCefBrowser.getURL, 0
+      )
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+         const testCasesPassedDiv = document.getElementById('testCasesPassed');
+         testCasesPassedDiv.textContent = "Test cases captured for test set: $recordedTestSetName. Click on the test set to view the test cases.";
+      """, webView.getCefBrowser.getURL, 0
+      )
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+         const testSuiteNameDiv = document.getElementById('testSuiteName');
+         testSuiteNameDiv.textContent = "Test Suite: $recordedTestSetName";
+      """, webView.getCefBrowser.getURL, 0
+      )
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+         const totalTestCasesDiv = document.getElementById('totalTestCases');
+         totalTestCasesDiv.textContent = "Total Test Cases: 0";
+      """, webView.getCefBrowser.getURL, 0
+      )
+    }
+  }
 
 
-
+    private def displayTestResults(message: String, isError: Boolean, testResults: Any): Unit = {
+      println("Displaying test results")
+      println(testResults)
+    }
   private def openDocumentInEditor(filePath: String): Unit = {
     ApplicationManager.getApplication().invokeLater(new Runnable {
       override def run(): Unit = {

@@ -278,6 +278,8 @@ button:disabled{
     background: url('../settings.png') no-repeat center center;
     background-size: contain;
 }
+
+
 .history-icon{
     display: inline-block;
     width: 20px;
