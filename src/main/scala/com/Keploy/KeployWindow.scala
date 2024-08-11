@@ -10,6 +10,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.{LocalFileSystem, VirtualFile}
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.jcef.{JBCefBrowser, JBCefClient, JBCefJSQuery}
+import com.jediterm.terminal.ui.{TerminalWidget, TerminalWidgetListener}
 import org.cef.CefApp
 import org.cef.browser.{CefBrowser, CefFrame}
 import org.cef.handler.CefLoadHandlerAdapter
@@ -25,16 +26,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Properties, Success}
-
-
-class TestResult {
-  var date: String = _
-  var method: String = _
-  var name: String = _
-  var report: String = _
-  var status: String = _
-  var testCasePath: String = _
-}
 
 case class KeployWindow(project: Project) {
 
@@ -57,12 +48,12 @@ case class KeployWindow(project: Project) {
       val record_script  = getScriptPath("keploy_record_script")
       val record_log_file = getLogPath("record_mode.log")
       if (isWindows) {
-        openTerminalAndExecuteCommand("wsl" , "")
+        openTerminalAndExecuteCommand("wsl" , "" , toExit = false , isRecording = false , isReplaying= false)
         // Wait for a few seconds before executing the next command
         Thread.sleep(5000)
-        openTerminalAndExecuteCommand(record_script , record_log_file)
+        openTerminalAndExecuteCommand(record_script , record_log_file , toExit = true , isRecording = true , isReplaying= false)
       } else {
-        openTerminalAndExecuteCommand(record_script , record_log_file)
+        openTerminalAndExecuteCommand(record_script , record_log_file , toExit = true ,  isRecording = true , isReplaying= false)
       }
       null
     })
@@ -71,12 +62,12 @@ case class KeployWindow(project: Project) {
       val replay_script  = getScriptPath("keploy_test_script")
       val replay_log_file = getLogPath("test_mode.log")
       if (isWindows) {
-        openTerminalAndExecuteCommand("wsl" , "")
+        openTerminalAndExecuteCommand("wsl" , "" , toExit = false ,isRecording = false , isReplaying= false)
         // Wait for a few seconds before executing the next command
         Thread.sleep(5000)
-        openTerminalAndExecuteCommand(replay_script , replay_log_file)
+        openTerminalAndExecuteCommand(replay_script , replay_log_file , toExit = true, isRecording = false , isReplaying= true)
       } else {
-        openTerminalAndExecuteCommand(replay_script , replay_log_file)
+        openTerminalAndExecuteCommand(replay_script , replay_log_file , toExit = true , isRecording = false , isReplaying= true)
       }
       null
     })
@@ -332,7 +323,7 @@ case class KeployWindow(project: Project) {
     val shell = System.getenv("SHELL")
     shell != null && shell.toLowerCase.contains("zsh")
   }
-  private def openTerminalAndExecuteCommand(command: String , logFile : String): Unit = {
+  private def openTerminalAndExecuteCommand(command: String , logFile : String , toExit : Boolean , isRecording : Boolean , isReplaying : Boolean): Unit = {
     SwingUtilities.invokeLater(new Runnable {
       override def run(): Unit = {
         try {
@@ -349,9 +340,40 @@ case class KeployWindow(project: Project) {
           } else {
             TerminalToolWindowManager.getWidgetByContent(content).asInstanceOf[ShellTerminalWidget]
           }
-          val commandToExec = s"$command  $logFile"
+          var commandToExec = s"$command  $logFile "
+          if (toExit) {
+            commandToExec = s"$command  $logFile ; exit 0"
+            if (isWindows) {
+              commandToExec = s"$command  $logFile ; exit 0 ; exit 0"
+            }
+          }
 //          val commandToExec = s"$command  $logFile ; exit 0"
           shellTerminalWidget.executeCommand(commandToExec)
+          if(isRecording || isReplaying) {
+            shellTerminalWidget.addListener(new TerminalWidgetListener {
+              override def allSessionsClosed(terminalWidget: TerminalWidget) = {
+                terminalWidget.removeListener(this)
+                println("Closing terminal")
+                if (isRecording) {
+                  println("Recording completed")
+                  webView.getCefBrowser.executeJavaScript(
+                    s"""
+                     const recordLog = document.getElementById('recordLog');
+                     recordLog.textContent = "Recording completed. Check the log file for more details.";
+                  """, webView.getCefBrowser.getURL, 0
+                  )
+                } else if (isReplaying) {
+                  println("Replaying completed")
+                  webView.getCefBrowser.executeJavaScript(
+                    s"""
+                     const replayLog = document.getElementById('replayLog');
+                     replayLog.textContent = "Replaying completed. Check the log file for more details.";
+                  """, webView.getCefBrowser.getURL, 0
+                  )
+                }
+              }
+            })
+          }
         } catch {
           case e: IOException => e.printStackTrace()
           case e: Exception => e.printStackTrace()
@@ -359,6 +381,9 @@ case class KeployWindow(project: Project) {
       }
     })
   }
+
+
+
   private def isKeployConfigPresent: Boolean = {
     val configPath = Paths.get(project.getBasePath, "keploy.yml")
     Files.exists(configPath)
