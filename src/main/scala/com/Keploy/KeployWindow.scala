@@ -24,7 +24,7 @@ import javax.swing.{JComponent, SwingUtilities}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Properties, Success}
 
 
 class TestResult {
@@ -50,10 +50,34 @@ case class KeployWindow(project: Project) {
     val jsQueryPrevTests: JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryRecordTests : JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryReplayTests : JBCefJSQuery = JBCefJSQuery.create(browser)
 
     jsQueryRecordTests.addHandler((_: String) => {
       println("Recording test cases")
-      openTerminalAndExecuteCommand("ng help")
+      val record_script  = getScriptPath("keploy_record_script")
+      val record_log_file = getLogPath("record_mode.log")
+      if (isWindows) {
+        openTerminalAndExecuteCommand("wsl" , "")
+        // Wait for a few seconds before executing the next command
+        Thread.sleep(5000)
+        openTerminalAndExecuteCommand(record_script , record_log_file)
+      } else {
+        openTerminalAndExecuteCommand(record_script , record_log_file)
+      }
+      null
+    })
+    jsQueryReplayTests.addHandler((_: String) => {
+      println("Replaying test cases")
+      val replay_script  = getScriptPath("keploy_test_script")
+      val replay_log_file = getLogPath("test_mode.log")
+      if (isWindows) {
+        openTerminalAndExecuteCommand("wsl" , "")
+        // Wait for a few seconds before executing the next command
+        Thread.sleep(5000)
+        openTerminalAndExecuteCommand(replay_script , replay_log_file)
+      } else {
+        openTerminalAndExecuteCommand(replay_script , replay_log_file)
+      }
       null
     })
 
@@ -62,9 +86,7 @@ case class KeployWindow(project: Project) {
       initializeConfig(appCommand, path)
       null
     })
-
     jsQueryConfig.addHandler((_: String) => {
-
       openDocumentInEditor(Paths.get(project.getBasePath, "keploy.yml").toString)
       null
     })
@@ -152,9 +174,6 @@ case class KeployWindow(project: Project) {
               "};",
             frame.getURL(), 0
           )
-
-
-
           browser.executeJavaScript(
             "window.historyPage = function() {" +
               jsQueryPrevTests.inject("historyPage") +
@@ -173,6 +192,13 @@ case class KeployWindow(project: Project) {
               "};",
             frame.getURL(), 0
           )
+          browser.executeJavaScript(
+            "window.replayTestCases = function() {" +
+              jsQueryReplayTests.inject("replayTestCases") +
+              "};",
+            frame.getURL(), 0
+          )
+
           val configInitializeJs =
             """
               document.getElementById('initialiseConfigButton').addEventListener('click', function() {
@@ -206,6 +232,14 @@ case class KeployWindow(project: Project) {
               });
             """
             browser.executeJavaScript(recordTestCasesJs, frame.getURL, 0)
+
+          val replayTestCasesJs =
+            """
+              document.getElementById('startTestingButton').addEventListener('click', function() {
+              window.replayTestCases();
+              });
+            """
+            browser.executeJavaScript(replayTestCasesJs, frame.getURL, 0)
         }
       }
     }, browser.getCefBrowser)
@@ -222,7 +256,83 @@ case class KeployWindow(project: Project) {
       new CustomSchemeHandlerFactory
     )
   }
-  private def openTerminalAndExecuteCommand(command: String): Unit = {
+
+  import java.io.{File, FileNotFoundException, InputStream}
+  import java.nio.file.{Files, Paths}
+
+  private def getScriptPath(scriptName: String): String = {
+    var resourceUrl = getClass.getResource(s"/scripts/bash/$scriptName.sh")
+    if (isZsh) {
+      resourceUrl = getClass.getResource(s"/scripts/zsh/$scriptName.zsh")
+    }
+
+    if (resourceUrl != null) {
+      val filePath = if (resourceUrl.getProtocol == "jar") {
+        // Resource is inside a JAR file, copy it to a temporary file
+        val inputStream: InputStream = resourceUrl.openStream()
+        val tempFile = Files.createTempFile(scriptName, ".sh")
+        Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        inputStream.close()
+        tempFile.toFile.setExecutable(true)  // Ensure the file is executable
+        //check if the file is present
+        if (tempFile.toFile.exists())
+          println("File exists")
+        tempFile.toAbsolutePath.toString
+      } else {
+        // Resource is not in a JAR, can use the path directly
+        new File(resourceUrl.toURI).getAbsolutePath
+      }
+
+      // Normalize the path to ensure it's correctly formatted for the operating system
+      val osNormalizedPath = Paths.get(filePath).toString
+//      // If running on Windows, ensure the path is properly formatted for the shell
+      if (Properties.isWin) {
+        osNormalizedPath.replace("C:", "/mnt/c").replace("\\", "/")
+      } else {
+        osNormalizedPath
+      }
+//      osNormalizedPath
+
+    } else {
+      throw new FileNotFoundException(s"Script $scriptName not found in plugin resources")
+    }
+  }
+
+  private def getLogPath(logName: String): String = {
+    val resourceUrl = getClass.getResource(s"/scripts/logs/$logName")
+
+    if (resourceUrl != null) {
+      val filePath = if (resourceUrl.getProtocol == "jar") {
+        // Resource is inside a JAR file, copy it to a temporary file
+        val inputStream: InputStream = resourceUrl.openStream()
+        val tempFile = Files.createTempFile(logName, null)
+        Files.copy(inputStream, tempFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        inputStream.close()
+        tempFile.toAbsolutePath.toString
+      } else {
+        // Resource is not in a JAR, can use the path directly
+        new File(resourceUrl.toURI).getAbsolutePath
+      }
+
+      // Normalize the path to ensure it's correctly formatted for the operating system
+      val osNormalizedPath = Paths.get(filePath).toString
+
+      //      // If running on Windows, ensure the path is properly formatted for the shell
+      if (Properties.isWin) {
+        osNormalizedPath.replace("C:", "/mnt/c").replace("\\", "/")
+      } else {
+        osNormalizedPath
+      }
+    } else {
+      throw new FileNotFoundException(s"Log $logName not found in plugin resources")
+    }
+  }
+
+  private def isZsh: Boolean = {
+    val shell = System.getenv("SHELL")
+    shell != null && shell.toLowerCase.contains("zsh")
+  }
+  private def openTerminalAndExecuteCommand(command: String , logFile : String): Unit = {
     SwingUtilities.invokeLater(new Runnable {
       override def run(): Unit = {
         try {
@@ -239,8 +349,9 @@ case class KeployWindow(project: Project) {
           } else {
             TerminalToolWindowManager.getWidgetByContent(content).asInstanceOf[ShellTerminalWidget]
           }
-
-          shellTerminalWidget.executeCommand(command)
+          val commandToExec = s"$command  $logFile"
+//          val commandToExec = s"$command  $logFile ; exit 0"
+          shellTerminalWidget.executeCommand(commandToExec)
         } catch {
           case e: IOException => e.printStackTrace()
           case e: Exception => e.printStackTrace()
@@ -252,7 +363,9 @@ case class KeployWindow(project: Project) {
     val configPath = Paths.get(project.getBasePath, "keploy.yml")
     Files.exists(configPath)
   }
-
+  private def isWindows: Boolean = {
+    System.getProperty("os.name").toLowerCase.contains("win")
+  }
   private def initializeConfig(appCommand: String, path: String): Unit = {
     val folderPath = project.getBasePath
     val contentPath = if (path.isEmpty) "./" else path

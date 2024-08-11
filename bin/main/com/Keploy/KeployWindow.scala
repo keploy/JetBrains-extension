@@ -16,7 +16,7 @@ import org.cef.handler.CefLoadHandlerAdapter
 import org.jetbrains.plugins.terminal.{ShellTerminalWidget, TerminalToolWindowFactory, TerminalToolWindowManager}
 import org.yaml.snakeyaml.Yaml
 
-import java.io.{File, IOException}
+import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -53,7 +53,14 @@ case class KeployWindow(project: Project) {
 
     jsQueryRecordTests.addHandler((_: String) => {
       println("Recording test cases")
-      openTerminalAndExecuteCommand("ng help")
+      if (isWindows) {
+        openTerminalAndExecuteCommand("wsl")
+        // Wait for a few seconds before executing the next command
+        Thread.sleep(5000)
+        openTerminalAndExecuteCommand("keploy record")
+      } else {
+        openTerminalAndExecuteCommand("keploy record")
+      }
       null
     })
 
@@ -222,6 +229,15 @@ case class KeployWindow(project: Project) {
       new CustomSchemeHandlerFactory
     )
   }
+
+  private def getScriptPath(scriptName: String): String = {
+    val resourceUrl = getClass.getResource(s"/scripts/$scriptName")
+    if (resourceUrl != null) {
+      new File(resourceUrl.toURI).getAbsolutePath
+    } else {
+      throw new FileNotFoundException(s"Script $scriptName not found in plugin resources")
+    }
+  }
   private def openTerminalAndExecuteCommand(command: String): Unit = {
     SwingUtilities.invokeLater(new Runnable {
       override def run(): Unit = {
@@ -252,7 +268,9 @@ case class KeployWindow(project: Project) {
     val configPath = Paths.get(project.getBasePath, "keploy.yml")
     Files.exists(configPath)
   }
-
+  private def isWindows: Boolean = {
+    System.getProperty("os.name").toLowerCase.contains("win")
+  }
   private def initializeConfig(appCommand: String, path: String): Unit = {
     val folderPath = project.getBasePath
     val contentPath = if (path.isEmpty) "./" else path
