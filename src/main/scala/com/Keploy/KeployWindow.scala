@@ -42,6 +42,7 @@ case class KeployWindow(project: Project) {
     val jsQueryConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryRecordTests : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryReplayTests : JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryCloseTerminal : JBCefJSQuery = JBCefJSQuery.create(browser)
 
     jsQueryRecordTests.addHandler((_: String) => {
       println("Recording test cases")
@@ -69,6 +70,25 @@ case class KeployWindow(project: Project) {
       } else {
         openTerminalAndExecuteCommand(replay_script , replay_log_file , toExit = true , isRecording = false , isReplaying= true)
       }
+      null
+    })
+
+    jsQueryCloseTerminal.addHandler((_: String) => {
+      println("Closing terminal from Javascript")
+        //get the current terminal widget
+        val terminalView = TerminalToolWindowManager.getInstance(project)
+        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(TerminalToolWindowFactory.TOOL_WINDOW_ID)
+        if (toolWindow == null) {
+          throw new IllegalStateException("Terminal tool window not found")
+        }
+        val contentManager = toolWindow.getContentManager
+        val content = contentManager.findContent("Keploy")
+        val shellTerminalWidget = if (content == null) {
+          terminalView.createLocalShellWidget(project.getBasePath, "Keploy")
+        } else {
+          TerminalToolWindowManager.getWidgetByContent(content).asInstanceOf[ShellTerminalWidget]
+        }
+        shellTerminalWidget.close()
       null
     })
 
@@ -189,6 +209,12 @@ case class KeployWindow(project: Project) {
               "};",
             frame.getURL(), 0
           )
+          browser.executeJavaScript(
+            "window.closeTerminal = function() {" +
+              jsQueryCloseTerminal.inject("closeTerminal") +
+                "};",
+            frame.getURL(), 0
+          )
 
           val configInitializeJs =
             """
@@ -200,6 +226,16 @@ case class KeployWindow(project: Project) {
             """
           browser.executeJavaScript(configInitializeJs, frame.getURL, 0)
 
+          val closeTerminalEvent =
+            """
+              document.getElementById('stopRecordingButton').addEventListener('click', function() {
+                window.closeTerminal();
+              });
+              document.getElementById('stopTestingButton').addEventListener('click', function() {
+                window.closeTerminal();
+              });
+            """
+            browser.executeJavaScript(closeTerminalEvent, frame.getURL, 0)
 
           val historyPageJs =
             """
