@@ -267,6 +267,8 @@ case class KeployWindow(project: Project) {
             """
           browser.executeJavaScript(configInitializeJs, frame.getURL, 0)
 
+
+
           val runConfigJs =
             """
               document.getElementById('setupConfig').addEventListener('click', function() {
@@ -466,13 +468,18 @@ case class KeployWindow(project: Project) {
                   } else {
                     println("Test cases captured")
                     capturedTestLines.foreach(testLine => {
-                      //                        val testCaseInfo = JSON.parse(testLine.substring(testLine.indexOf('{')));
-                      //                          val testCaseInfo = testLine.split("🟠 Keploy has captured test cases for the user's application.")(1)
-                      val testSetPath = testLine.split("path: ")(1).split("/tests")(0)
-                      val testSetName = testSetPath.split("/")(1)
-                      println(s"Test set path: $testSetPath")
-                      println(s"Test set name: $testSetName")
-                      displayRecordedTestCases(testSetName, noTestCases = false, path = testSetPath, testSetName = testSetName)
+                      // Extract the relevant part after "path:"
+                      if (testLine.contains("path:")) {
+                        val pathPart = testLine.split("path:")(1).trim
+                        val testSetPath = pathPart.split("/tests")(0).trim
+                        val testSetName = testSetPath.split("/").last.trim
+
+                        println(s"Test set path: $testSetPath")
+                        println(s"Test set name: $testSetName")
+                        displayRecordedTestCases(testSetName, noTestCases = false, path = testSetPath, testSetName = testSetName)
+                      } else {
+                        println("No path found in the test line.")
+                      }
                     })
                   }
                 } else if (isReplaying) {
@@ -850,30 +857,63 @@ case class KeployWindow(project: Project) {
          """, webView.getCefBrowser.getURL, 0
       )
     } else {
-      webView.getCefBrowser.executeJavaScript(
-        s"""
-         const replayLog = document.getElementById('replayLog');
-         replayLog.textContent = "Test cases captured for test set: $recordedTestSetName. Click on the test set to view the test cases.";
-      """, webView.getCefBrowser.getURL, 0
-      )
-      webView.getCefBrowser.executeJavaScript(
-        s"""
-         const testCasesPassedDiv = document.getElementById('testCasesPassed');
-         testCasesPassedDiv.textContent = "Test cases captured for test set: $recordedTestSetName. Click on the test set to view the test cases.";
-      """, webView.getCefBrowser.getURL, 0
-      )
-      webView.getCefBrowser.executeJavaScript(
-        s"""
-         const testSuiteNameDiv = document.getElementById('testSuiteName');
-         testSuiteNameDiv.textContent = "Test Suite: $recordedTestSetName";
-      """, webView.getCefBrowser.getURL, 0
-      )
-      webView.getCefBrowser.executeJavaScript(
-        s"""
-         const totalTestCasesDiv = document.getElementById('totalTestCases');
-         totalTestCasesDiv.textContent = "Total Test Cases: 0";
-      """, webView.getCefBrowser.getURL, 0
-      )
+        webView.getCefBrowser.executeJavaScript(
+            s"""
+            recordStatus.textContent = `Test Cases Recorded Successfully`;
+            recordStatus.classList.add("success");
+            if (recordedTestCasesDiv) {
+              let testSetDropdown = document.getElementById($testSetName);
+              if (!testSetDropdown) {
+            // Create a dropdown for the new test set
+            testSetDropdown = document.createElement('div');
+            testSetDropdown.id = $testSetName;
+            testSetDropdown.className.add('dropdown-container');
+
+            // Create a button to act as the dropdown toggle
+            const dropdownToggle = document.createElement('div');
+            dropdownToggle.classList.add("dropdown-header");
+
+            // Create the toggle text
+            const toggleText = document.createElement('span');
+            toggleText.textContent = $recordedTestSetName;
+
+            // Create the dropdown icon
+            const dropdownIcon = document.createElement('span');
+            dropdownIcon.className = 'dropdown-icon';
+
+            // Append text and icon to the toggle
+            dropdownToggle.appendChild(toggleText);
+            dropdownToggle.appendChild(dropdownIcon);
+
+            // Create a container for the test cases
+            const testCaseContainer = document.createElement('div');
+            testCaseContainer.classList.add("dropdown-content");
+            testCaseContainer.style.display = "none"; // Hide initially
+
+            // Add toggle functionality
+            dropdownToggle.addEventListener('click', () => {
+                testCaseContainer.style.display = testCaseContainer.style.display === "none" ? "block" : "none";
+                dropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
+            });
+
+            // Append the toggle and container to the dropdown
+            testSetDropdown.appendChild(dropdownToggle);
+            testSetDropdown.appendChild(testCaseContainer);
+
+            recordedTestCasesDiv.appendChild(testSetDropdown);
+            }
+            // Create the test case element
+        const testCaseElement = document.createElement('button');
+        testCaseElement.classList.add("recordedTestCase");
+        testCaseElement.addEventListener('click', async () => {
+            console.log("Opening test case: " + $path);
+            });
+            testCaseElement.textContent = $path;
+            const testCaseContainer = testSetDropdown.querySelector('.dropdown-content');
+        testCaseContainer.appendChild(testCaseElement);
+        }
+             """, webView.getCefBrowser.getURL, 0
+        )
     }
   }
 
