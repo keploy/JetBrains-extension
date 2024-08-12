@@ -45,12 +45,24 @@ case class KeployWindow(project: Project) {
     val jsQueryReplayTests : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryCloseTerminal : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryOpenLog : JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryRunConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
 
     jsQueryOpenLog.addHandler((logPath: String) => {
       //copy it to a .log file
         val logFile = logPath.replace(".tmp", ".log")
         Files.copy(Paths.get(logPath), Paths.get(logFile))
       openDocumentInEditor(logFile)
+      null
+    })
+
+    jsQueryRunConfig.addHandler((_: String) => {
+      println("Running keploy config --generate")
+      if(isWindows){
+        openTerminalAndExecuteCommand("wsl" , "" , toExit = false , isRecording = false , isReplaying= false)
+        // Wait for a few seconds before executing the next command
+        Thread.sleep(5000)
+      }
+      openTerminalAndExecuteCommand("keploy config --generate" , "" , toExit = true , isRecording = false , isReplaying= false)
       null
     })
 
@@ -189,6 +201,15 @@ case class KeployWindow(project: Project) {
     client.addLoadHandler(new CefLoadHandlerAdapter {
       override def onLoadEnd(browser: CefBrowser, frame: CefFrame, httpStatusCode: Int): Unit = {
         if (frame.isMain) {
+
+          browser.executeJavaScript(
+            "window.runConfig = function() {" +
+              jsQueryRunConfig.inject("runConfig") +
+              "};",
+            frame.getURL(), 0
+          )
+
+
           browser.executeJavaScript(
             "window.initializeConfig = function(appCommandAndPath) {" +
               jsQuery.inject("appCommandAndPath") +
@@ -245,6 +266,14 @@ case class KeployWindow(project: Project) {
               });
             """
           browser.executeJavaScript(configInitializeJs, frame.getURL, 0)
+
+          val runConfigJs =
+            """
+              document.getElementById('setupConfig').addEventListener('click', function() {
+                window.runConfig();
+              });
+            """
+          browser.executeJavaScript(runConfigJs, frame.getURL, 0)
 
           val closeTerminalEvent =
             """
@@ -852,6 +881,7 @@ case class KeployWindow(project: Project) {
     private def displayTestResults(message: String, isError: Boolean, testResults: Any): Unit = {
       println("Displaying test results")
       println(testResults)
+      //TODO : View logs button
     }
   private def openDocumentInEditor(filePath: String): Unit = {
     ApplicationManager.getApplication().invokeLater(new Runnable {
