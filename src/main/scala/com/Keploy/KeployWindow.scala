@@ -46,12 +46,18 @@ case class KeployWindow(project: Project) {
     val jsQueryCloseTerminal : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryOpenLog : JBCefJSQuery = JBCefJSQuery.create(browser)
     val jsQueryRunConfig : JBCefJSQuery = JBCefJSQuery.create(browser)
+    val jsQueryOpenYamlFile : JBCefJSQuery = JBCefJSQuery.create(browser)
 
     jsQueryOpenLog.addHandler((logPath: String) => {
       //copy it to a .log file
         val logFile = logPath.replace(".tmp", ".log")
         Files.copy(Paths.get(logPath), Paths.get(logFile))
       openDocumentInEditor(logFile)
+      null
+    })
+
+    jsQueryOpenYamlFile.addHandler((filePath: String) => {
+      openDocumentInEditor(filePath)
       null
     })
 
@@ -247,6 +253,13 @@ case class KeployWindow(project: Project) {
           browser.executeJavaScript(
             "window.openLogFile = function(logPath) {" +
               jsQueryOpenLog.inject("logPath") +
+              "};",
+            frame.getURL(), 0
+          )
+
+          browser.executeJavaScript(
+            "window.openYamlFile = function(filePath) {" +
+              jsQueryOpenYamlFile.inject("filePath") +
               "};",
             frame.getURL(), 0
           )
@@ -468,11 +481,11 @@ case class KeployWindow(project: Project) {
                   } else {
                     println("Test cases captured")
                     capturedTestLines.foreach { testLine =>
-
+      //TODO : Check if this works on linux paths
                       if (testLine.contains("path") && testLine.contains("testcase name")) {
                         // Extracting testSetPath
                         val pathPart = testLine.split("path\":")(1).trim
-                        val testSetPath = pathPart.split("\",")(0).replace("\"", "").trim
+                        var testSetPath = pathPart.split("\",")(0).replace("\"", "").trim
 
                         // Extracting testSetName which is the 2nd last part of the path
                         val testSetName = testSetPath.split("/").reverse(1)
@@ -480,6 +493,7 @@ case class KeployWindow(project: Project) {
                         // Extracting testCaseName
                         val testCasePart = testLine.split("testcase name\":")(1).trim
                         val testCaseName = testCasePart.split("}")(0).replace("\"", "").trim
+                        testSetPath = testSetPath + "/" + testCaseName + ".yaml"
                         displayRecordedTestCases(testCaseName, noTestCases = false, path = testSetPath, testSetName = testSetName)
                       } else {
                         println("No valid path or testcase name found in the test line.")
@@ -881,6 +895,23 @@ case class KeployWindow(project: Project) {
            |    testSetDropdown.id = "$jsTestSetName";
            |    testSetDropdown.classList.add('dropdown-container');
            |    testSetDropdown.style.display = "block";
+           |    const dropdownToggle = document.createElement('div');
+           |    dropdownToggle.classList.add('dropdown-header');
+           |    const toggleText = document.createElement('span');
+           |    toggleText.textContent = "$jsTestSetName";
+           |    const dropdownIcon = document.createElement('span');
+           |    dropdownIcon.classList.add('dropdown-icon');
+           |    dropdownToggle.appendChild(toggleText);
+           |    dropdownToggle.appendChild(dropdownIcon);
+           |    const testCaseContainer = document.createElement('div');
+           |    testCaseContainer.classList.add('dropdown-content');
+           |    testCaseContainer.style.display = 'none';
+           |    dropdownToggle.addEventListener('click', () => {
+           |    testCaseContainer.style.display = testCaseContainer.style.display === 'none' ? 'block' : 'none';
+           |    dropdownIcon.classList.toggle('open');
+           |    });
+           |    testSetDropdown.appendChild(dropdownToggle);
+           |    testSetDropdown.appendChild(testCaseContainer);
            |    recordedTestCasesDiv.appendChild(testSetDropdown);
            |  }
            |
@@ -892,8 +923,11 @@ case class KeployWindow(project: Project) {
            |  testSetDropdown.appendChild(testCaseElement);
            |
            |  testCaseElement.addEventListener('click', () => {
-           |    console.log("Opening test case: " + "$jsRecordedTestCaseName");
+           |    window.openYamlFile("$path");
            |  });
+           |
+           |  const testCaseContainer = testSetDropdown.querySelector('.dropdown-content');
+           |  testCaseContainer.appendChild(testCaseElement);
            |}
          """.stripMargin, webView.getCefBrowser.getURL, 0
       )
@@ -908,13 +942,23 @@ case class KeployWindow(project: Project) {
       //TODO : View logs button
     }
   private def openDocumentInEditor(filePath: String): Unit = {
+    if(filePath.isEmpty) {
+      println("File path is empty")
+      return
+    }
+    var pathToOpen = filePath
+    if(isWindows){
+      pathToOpen = pathToOpen.replace("/mnt/c", "C:")
+      pathToOpen = pathToOpen.replace("/", "\\")
+    }
+    println(s"Opening file: $pathToOpen")
     ApplicationManager.getApplication().invokeLater(new Runnable {
       override def run(): Unit = {
-        val file: VirtualFile = LocalFileSystem.getInstance().findFileByPath(filePath)
+        val file: VirtualFile = LocalFileSystem.getInstance().findFileByPath(pathToOpen)
         if (file != null) {
           FileEditorManager.getInstance(project).openFile(file, true)
         } else {
-          println(s"File not found: $filePath")
+          println(s"File not found: $pathToOpen")
         }
       }
     })
