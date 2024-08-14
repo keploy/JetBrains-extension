@@ -842,96 +842,67 @@ case class KeployWindow(project: Project) {
       println("Appended dropdown container")
     }
   }
-  private def displayRecordedTestCases (recordedTestCaseName: String, noTestCases: Boolean , path: String , testSetName: String): Unit = {
-    println(s"Displaying recorded test cases for test set: $testSetName , path: $path , testCase: $recordedTestCaseName , noTestCases: $noTestCases ")
+  private def displayRecordedTestCases(recordedTestCaseName: String, noTestCases: Boolean, path: String, testSetName: String): Unit = {
+    println(s"Displaying recorded test cases for test set: $testSetName , path: $path , testCase: $recordedTestCaseName , noTestCases: $noTestCases")
+
+    val jsTestSetName = testSetName.replace("\"", "\\\"") // Escape quotes for JS
+    val jsRecordedTestCaseName = recordedTestCaseName.replace("\"", "\\\"")
+
     webView.getCefBrowser.executeJavaScript(
       s"""
-          const recordStatus = document.getElementById('recordStatus');
-          const recordedTestCasesDiv = document.getElementById('recordedTestCases');
-      recordStatus.style.display = "block";
-    recordedTestCasesDiv.style.display = "grid";
-      """, webView.getCefBrowser.getURL, 0
+         |const recordStatus = document.getElementById('recordStatus');
+         |const recordedTestCasesDiv = document.getElementById('recordedTestCases');
+         |recordStatus.style.display = "block";
+         |recordedTestCasesDiv.style.display = "grid";
+       """.stripMargin, webView.getCefBrowser.getURL, 0
     )
+
     if (noTestCases) {
       webView.getCefBrowser.executeJavaScript(
         s"""
-          recordStatus.textContent = `Failed To Record Test Cases`;
-        recordStatus.classList.add("error");
-        const errorMessage = document.createElement('p');
-        viewRecordLogsButton.style.display = "block";
-         """, webView.getCefBrowser.getURL, 0
+           |recordStatus.textContent = "Failed To Record Test Cases";
+           |recordStatus.classList.add("error");
+           |const viewRecordLogsButton = document.getElementById('viewRecordLogsButton');
+           |if (viewRecordLogsButton) {
+           |  viewRecordLogsButton.style.display = "block";
+           |}
+         """.stripMargin, webView.getCefBrowser.getURL, 0
       )
     } else {
-        webView.getCefBrowser.executeJavaScript(
-            s"""
-            recordStatus.textContent = `Test Cases Recorded Successfully`;
-            recordStatus.classList.add("success");
-//            recordedTestCasesDiv.style.border = "1px solid red";
-            if (recordedTestCasesDiv) {
-//            recordedTestCasesDiv.style.border = "1px solid green";
-            if($testSetName === "test-set-40") {
-            recordedTestCasesDiv.style.border = "1px solid red";
-            }
-              let testSetDropdown = document.getElementById($testSetName);
-              if (testSetDropdown === null) {
-              recordedTestCasesDiv.style.border = "1px solid blue";
-            // Create a dropdown for the new test set
-            testSetDropdown = document.createElement('div');
-            testSetDropdown.id = $testSetName;
-            testSetDropdown.className.add('dropdown-container');
-            testSetDropdown.style.border = "1px solid yellow";
-            testSetDropdown.style.display = "block";
+      webView.getCefBrowser.executeJavaScript(
+        s"""
+           |recordStatus.textContent = "Test Cases Recorded Successfully";
+           |recordStatus.classList.add("success");
 
-//            // Create a button to act as the dropdown toggle
-//            const dropdownToggle = document.createElement('div');
-//            dropdownToggle.classList.add("dropdown-header");
-//
-//            // Create the toggle text
-//            const toggleText = document.createElement('span');
-//            toggleText.textContent = $testSetName;
-//
-//            // Create the dropdown icon
-//            const dropdownIcon = document.createElement('span');
-//            dropdownIcon.className = 'dropdown-icon';
-//
-//            // Append text and icon to the toggle
-//            dropdownToggle.appendChild(toggleText);
-//            dropdownToggle.appendChild(dropdownIcon);
-//
-//            // Create a container for the test cases
-//            const testCaseContainer = document.createElement('div');
-//            testCaseContainer.classList.add("dropdown-content");
-//            testCaseContainer.style.display = "none"; // Hide initially
-//
-//            // Add toggle functionality
-//            dropdownToggle.addEventListener('click', () => {
-//                testCaseContainer.style.display = testCaseContainer.style.display === "none" ? "block" : "none";
-//                dropdownIcon.classList.toggle('open'); // Update icon based on dropdown state
-//            });
-//
-//            // Append the toggle and container to the dropdown
-//            testSetDropdown.appendChild(dropdownToggle);
-//            testSetDropdown.appendChild(testCaseContainer);
-
-            recordedTestCasesDiv.appendChild(testSetDropdown);
-            }
-//            // Create the test case element
-//        const testCaseElement = document.createElement('button');
-//        testCaseElement.classList.add("recordedTestCase");
-//        testCaseElement.addEventListener('click', async () => {
-//            console.log("Opening test case: " + $recordedTestCaseName);
-//            });
-//            testCaseElement.textContent = $recordedTestCaseName;
-//            const testCaseContainer = testSetDropdown.querySelector('.dropdown-content');
-//        testCaseContainer.appendChild(testCaseElement);
-        }
-             """, webView.getCefBrowser.getURL, 0
-        )
+           |if (recordedTestCasesDiv) {
+           |  let testSetDropdown = document.getElementById("$jsTestSetName");
+           |  if (!testSetDropdown) {
+           |    testSetDropdown = document.createElement('div');
+           |    testSetDropdown.id = "$jsTestSetName";
+           |    testSetDropdown.classList.add('dropdown-container');
+           |    testSetDropdown.style.display = "block";
+           |    recordedTestCasesDiv.appendChild(testSetDropdown);
+           |  }
+           |
+           |  // Create the test case element
+           |  const testCaseElement = document.createElement('button');
+           |  testCaseElement.classList.add("recordedTestCase");
+           |  testCaseElement.textContent = "$jsRecordedTestCaseName";
+           |  testCaseElement.style.background = "#00163D";
+           |  testSetDropdown.appendChild(testCaseElement);
+           |
+           |  testCaseElement.addEventListener('click', () => {
+           |    console.log("Opening test case: " + "$jsRecordedTestCaseName");
+           |  });
+           |}
+         """.stripMargin, webView.getCefBrowser.getURL, 0
+      )
     }
   }
 
 
-    private def displayTestResults(message: String, isError: Boolean, testResults: Any): Unit = {
+
+  private def displayTestResults(message: String, isError: Boolean, testResults: Any): Unit = {
       println("Displaying test results")
       println(testResults)
       //TODO : View logs button
