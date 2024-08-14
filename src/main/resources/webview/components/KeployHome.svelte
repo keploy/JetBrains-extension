@@ -364,7 +364,7 @@
     display: none;
   }
 </style>
-
+<!--TODO : RESET UI upon record button and replay button, log button is still visible -->
 <div class="container baloo-2-custom">
   <div class="icon-buttons">
     <button id="keploycommands" class="icon-button {selectedIconButton === 1 ? 'selected' : ''}" on:click={() => selectButton(1)}>

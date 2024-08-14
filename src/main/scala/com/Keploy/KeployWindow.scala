@@ -519,7 +519,9 @@ case class KeployWindow(project: Project) {
                     displayTestResults("No test results found", isError = true, null)
                     //TODO : Find a way to break here
                   }
-                  val endIndex = logLines.indexWhere((line) => line.contains("<=========================================>"))
+                  val endIndex = logLines.zipWithIndex.indexWhere { case (line, index) =>
+                    index > startIndex && line.contains("<=========================================>")
+                  }
                   if (endIndex == -1) {
                     println("End index not found")
                     displayTestResults("No test results found", isError = true, null)
@@ -547,6 +549,7 @@ case class KeployWindow(project: Project) {
 
                     // Remove first line of summary which is header
                     testSummaryList.remove(0)
+                    println(testSummaryList)
 
 //                    TODO: Implement Complete Summary
                     displayTestResults("Test results found", isError = false, testSummaryList)
@@ -939,7 +942,34 @@ case class KeployWindow(project: Project) {
   private def displayTestResults(message: String, isError: Boolean, testResults: Any): Unit = {
       println("Displaying test results")
       println(testResults)
-      //TODO : View logs button
+      if (isError) {
+        webView.getCefBrowser.executeJavaScript(
+          s"""
+             |const testResultsDiv = document.getElementById('testResults');
+             |testResultsDiv.style.display = "block";
+             |testResultsDiv.textContent = "$message";
+             |testResultsDiv.classList.add("error");
+             |if(viewTestLogsButton) {
+             |viewTestLogsButton.style.display = "block";
+             |};
+           """.stripMargin, webView.getCefBrowser.getURL, 0
+        )
+      } else {
+        val testResultsList: Seq[String] = testResults match {
+          case buffer: scala.collection.mutable.ArrayBuffer[String] => buffer.toSeq
+          case seq: scala.collection.immutable.Seq[String] => seq
+          case _ => throw new ClassCastException("Unsupported type")
+        }
+        val testResultsString = testResultsList.mkString("\n")
+        val jsTestResultsString = testResultsString.replace("\"", "\\\"") // Escape quotes for JS
+        webView.getCefBrowser.executeJavaScript(
+          s"""
+             |const testResultsDiv = document.getElementById('testResults');
+             |testResultsDiv.style.display = "block";
+             |testResultsDiv.textContent = "$testResultsString";
+           """.stripMargin, webView.getCefBrowser.getURL, 0
+        )
+      }
     }
   private def openDocumentInEditor(filePath: String): Unit = {
     if(filePath.isEmpty) {
