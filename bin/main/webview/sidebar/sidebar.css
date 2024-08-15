@@ -23,22 +23,6 @@ button:disabled{
     100% { background-color: #FF914D; }
 }
 
-
-
-/* #versionDisplay{
-    font-size: 20px;
-    font-weight: bold;
-    text-align: center;
-    margin-top: 20px;
-} */
-/* #versionDisplay p{
-    font-size: 20px;
-    font-weight: bold;
-    color: #d1a30a;
-    text-align: center;
-    margin-top: 20px;
-} */
-
 .terminal {
     cursor:copy;
     background-color: #212121;
@@ -46,15 +30,15 @@ button:disabled{
     font-family: 'Courier New', Courier, monospace;
     padding: 10px 5px;
     border-radius: 5px;
-  }
-  .terminal:hover {
+}
+.terminal:hover {
     background-color: #333;
-  }
-  pre{
+}
+pre{
     color: #ff914d;
     margin-bottom: 10px;
     font-size: 16px;
-  }
+}
 /* Add this CSS to your stylesheet */
 
 .dropdown-container {
@@ -84,6 +68,12 @@ button:disabled{
     align-items: center;
     cursor: pointer;
 }
+.report-dropdown-content{
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    padding: 10px;
+    font-size: 18px;
+}
 
 .dropdown-header:hover {
     background-color: #FF914D;
@@ -92,12 +82,15 @@ button:disabled{
 
 .dropdown-content {
     display: none;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     padding: 10px;
-    font-size: 18px;
+    /* font-size: 18px; */
 }
 
 .dropdown-content.show {
+    display: grid;
+}
+.report-dropdown-content.show{
     display: grid;
 }
 
@@ -156,23 +149,23 @@ button:disabled{
     animation: spin 1s linear infinite;
     margin: 5px auto;
     margin-bottom: 10px;
-  }
+}
 
-  @keyframes spin {
+@keyframes spin {
     0% {
-      transform: rotate(0deg);
+        transform: rotate(0deg);
     }
     100% {
-      transform: rotate(360deg);
+        transform: rotate(360deg);
     }
-  }
-  hr {
+}
+hr {
     margin: 0;
     width: 100%;
     text-align: center;
     margin: 20px auto;
-  }
-  #completeTestSummaryGrid div p {
+}
+#completeTestSummaryGrid div p {
     margin-top: 5px;
     margin-bottom: 5px;
     text-align: center;
@@ -191,10 +184,10 @@ button:disabled{
     text-decoration: none;
     color: white;
     cursor: pointer;
-  }
-  .homebutton:hover{
+}
+.homebutton:hover{
     background-color: rgb(13, 13, 13);
-  }
+}
 
 .logo{
     color:#FF914D;
@@ -294,7 +287,7 @@ button:disabled{
     position: relative;
     width: 90%;
     height: 90%;
-    }
+}
 
 .settings-icon.open {
     transform: rotate(180deg);
@@ -325,13 +318,6 @@ button:disabled{
     transform: rotate(180deg);
 }
 
-/* .logodiv{
-    display: flex;
-    justify-content: center;
-} *//* Common dropdown styles */
-
-
-/* Specific styles for recorded test cases */
 .recordedTestCase {
     display: block;
     width: 100%;
