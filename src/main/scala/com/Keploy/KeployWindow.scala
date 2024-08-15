@@ -535,24 +535,18 @@ case class KeployWindow(project: Project) {
                     displayTestResults("No test results found", isError = true, null)
                   } else {
                     println("Test results found")
-//                    val ansiRegex: Regex = """[\u001B\u009B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]""".r
-                    val ansiRegex: Regex = """[\u001B\u009B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]]""".r
-
+                      val ansiRegex: Regex = """\x1B\[[0-9;]*[a-zA-Z]""".r
                     val cleanSummary = ansiRegex.replaceAllIn(testResultsString, "")
-                    println(cleanSummary)
-
+//                    println(cleanSummary)
                     val testSummaryList = cleanSummary.split('\n').toBuffer
-                    println(testSummaryList)
-
+//                    println(testSummaryList)
                     // Remove last line of summary which is pattern
                     testSummaryList.remove(testSummaryList.length - 1)
-
                     // Remove first line of summary which is header
                     testSummaryList.remove(0)
-                    println(testSummaryList)
-
+//                    println(testSummaryList)
 //                    TODO: Implement Complete Summary
-                    displayTestResults("Test results found", isError = false, testSummaryList)
+                    displayTestResults("Test Results", isError = false, testSummaryList)
                   }
                 }
               }})
@@ -941,34 +935,60 @@ case class KeployWindow(project: Project) {
 
   private def displayTestResults(message: String, isError: Boolean, testResults: Any): Unit = {
       println("Displaying test results")
-      println(testResults)
+//      println(testResults)
+    webView.getCefBrowser.executeJavaScript(
+      s"""
+         |const testResultsDiv = document.getElementById('testResults');
+         |const testStatusDiv = document.getElementById('testStatus');
+         |testStatusDiv.style.display = "block";
+         |testResultsDiv.style.display = "block";
+         |testResultsDiv.innerHTML = '';
+         |testStatusDiv.textContent = "$message";
+       """.stripMargin, webView.getCefBrowser.getURL, 0
+    )
       if (isError) {
         webView.getCefBrowser.executeJavaScript(
           s"""
-             |const testResultsDiv = document.getElementById('testResults');
-             |testResultsDiv.style.display = "block";
-             |testResultsDiv.textContent = "$message";
-             |testResultsDiv.classList.add("error");
+             |testStatusDiv.classList.add("error");
              |if(viewTestLogsButton) {
              |viewTestLogsButton.style.display = "block";
+             |var  testCaseElement = document.createElement('p');
              |};
            """.stripMargin, webView.getCefBrowser.getURL, 0
         )
       } else {
-        val testResultsList: Seq[String] = testResults match {
+        var testResultsList: Seq[String] = testResults match {
           case buffer: scala.collection.mutable.ArrayBuffer[String] => buffer.toSeq
           case seq: scala.collection.immutable.Seq[String] => seq
           case _ => throw new ClassCastException("Unsupported type")
         }
-        val testResultsString = testResultsList.mkString("\n")
-        val jsTestResultsString = testResultsString.replace("\"", "\\\"") // Escape quotes for JS
-        webView.getCefBrowser.executeJavaScript(
-          s"""
-             |const testResultsDiv = document.getElementById('testResults');
-             |testResultsDiv.style.display = "block";
-             |testResultsDiv.textContent = "$testResultsString";
+        //Keep only first three entries
+        testResultsList = testResultsList.take(3)
+        testResultsList.foreach(line => {
+//          println(line)
+          webView.getCefBrowser.executeJavaScript(
+            s"""
+               | testCaseElement = document.createElement('p');
+               | testCaseElement.textContent = "$line";
+               |    if ("$line".includes("test passed")) {
+               |      testCaseElement.classList.add("success");
+               |    }
+               |    else if ("$line".includes("test failed")) {
+               |      //split the textSummary
+               |      const numErrors = "$line".split(":")[1];
+               |      if (numErrors !== " 0") {
+               |        viewTestLogsButton.style.display = "block";
+               |      }
+               |      testCaseElement.classList.add("error");
+               |    }
+               |    else {
+               |      testCaseElement.classList.add("info");
+               |    }
+               |     testResultsDiv.appendChild(testCaseElement);
            """.stripMargin, webView.getCefBrowser.getURL, 0
-        )
+          )
+        })
+
       }
     }
   private def openDocumentInEditor(filePath: String): Unit = {
