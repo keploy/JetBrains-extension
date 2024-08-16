@@ -1,0 +1,21 @@
+<idea-plugin>
+  <id>catviewer</id>
+  <name>CatViewer</name>
+  <version>1.0</version>
+
+  <description><![CDATA[
+    Keploy : Generate e2e tests directly from your IDE!
+  ]]></description>
+
+  <idea-version since-build="201.6668.113"/>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>org.jetbrains.plugins.terminal</depends>
+
+
+  <extensions defaultExtensionNs="com.intellij">
+    <toolWindow id="Keploy" anchor="right" factoryClass="com.Keploy.WindowFactory"/>
+    <projectService id="KeployWindowService" serviceImplementation="com.Keploy.KeployWindowService"/>
+  </extensions>
+
+</idea-plugin>
