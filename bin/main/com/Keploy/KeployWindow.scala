@@ -88,6 +88,25 @@ case class KeployWindow(project: Project) {
       println("Recording test cases")
       val record_script  = getScriptPath("keploy_record_script")
       val record_log_file = getLogPath("record_mode.log")
+      webView.getCefBrowser.executeJavaScript(
+        """
+          |var recordStatusClear = document.getElementById('recordStatus');
+          |recordStatusClear.textContent = "";
+          |recordStatusClear.style.display = "none";
+          |recordedTestCasesDivClear = document.getElementById('recordedTestCases');
+          |recordedTestCasesDivClear.innerHTML = "";
+          |recordedTestCasesDivClear.style.display = "none";
+          |var testStatusClear = document.getElementById('testStatus');
+          |testStatusClear.textContent = "";
+          |testStatusClear.style.display = "none";
+          |var   testResultsDivClear = document.getElementById('testResults');
+          |testResultsDivClear.innerHTML = "";
+          |testResultsDivClear.style.display = "none";
+          |var viewTestLogsButtonClear = document.getElementById('viewTestLogsButton');
+          |viewTestLogsButtonClear.style.display = "none";
+          |var viewRecordLogsButtonClear = document.getElementById('viewRecordLogsButton');
+          |viewRecordLogsButtonClear.style.display = "none";
+          |""".stripMargin , webView.getCefBrowser.getURL, 0)
       if (isWindows) {
         openTerminalAndExecuteCommand("wsl" , "" , toExit = false , isRecording = false , isReplaying= false)
         // Wait for a few seconds before executing the next command
@@ -100,6 +119,26 @@ case class KeployWindow(project: Project) {
     })
     jsQueryReplayTests.addHandler((_: String) => {
       println("Replaying test cases")
+      webView.getCefBrowser.executeJavaScript(
+        """
+          |var recordStatusClear = document.getElementById('recordStatus');
+          |recordStatusClear.textContent = "";
+          |recordStatusClear.style.display = "none";
+          |recordedTestCasesDivClear = document.getElementById('recordedTestCases');
+          |recordedTestCasesDivClear.innerHTML = "";
+          |recordedTestCasesDivClear.style.display = "none";
+          |var testStatusClear = document.getElementById('testStatus');
+          |testStatusClear.textContent = "";
+          |testStatusClear.style.display = "none";
+          |var   testResultsDivClear = document.getElementById('testResults');
+          |testResultsDivClear.innerHTML = "";
+          |testResultsDivClear.style.display = "none";
+          |var viewTestLogsButtonClear = document.getElementById('viewTestLogsButton');
+          |viewTestLogsButtonClear.style.display = "none";
+          |var viewRecordLogsButtonClear = document.getElementById('viewRecordLogsButton');
+          |viewRecordLogsButtonClear.style.display = "none";
+          |""".stripMargin , webView.getCefBrowser.getURL, 0)
+
       val replay_script  = getScriptPath("keploy_test_script")
       val replay_log_file = getLogPath("test_mode.log")
       if (isWindows) {
@@ -481,6 +520,7 @@ case class KeployWindow(project: Project) {
                          viewRecordLogsButton.addEventListener('click', function() {
                          window.openLogFile("${terminalLogFile}");
                          });
+
                     """, webView.getCefBrowser.getURL, 0
                   )
 
@@ -521,7 +561,7 @@ case class KeployWindow(project: Project) {
                          viewTestLogsButton.addEventListener('click', function() {
                          window.openLogFile("${terminalLogFile}");
                          });
-                    """, webView.getCefBrowser.getURL, 0
+                         """, webView.getCefBrowser.getURL, 0
                   )
 
                   val logData = Files.readAllLines(Paths.get(terminalLogFile)).toArray.mkString("\n")

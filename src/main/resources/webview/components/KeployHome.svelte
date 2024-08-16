@@ -224,6 +224,7 @@
     align-items: center;
     justify-content: space-around;
     text-align: center;
+    color : white;
   }
 
   .header h1 {
@@ -314,7 +315,7 @@
     margin-top: 16px;
     padding: 16px;
     /* background-color: #e9e9e9; */
-    /* color: #b0b0b0; */
+     color: white;
     font-size: 16px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -364,7 +365,6 @@
     display: none;
   }
 </style>
-<!--TODO : RESET UI upon record button and replay button, log button is still visible -->
 <div class="container baloo-2-custom">
   <div class="icon-buttons">
     <button id="keploycommands" class="icon-button {selectedIconButton === 1 ? 'selected' : ''}" on:click={() => selectButton(1)}>
