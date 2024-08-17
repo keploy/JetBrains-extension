@@ -1,11 +1,12 @@
 <idea-plugin>
-  <id>catviewer</id>
-  <name>CatViewer</name>
+  <id>keploy</id>
+  <name>Keploy</name>
   <version>1.0</version>
 
   <description><![CDATA[
     Keploy : Generate e2e tests directly from your IDE!
   ]]></description>
+  <vendor>Keploy</vendor>
 
   <idea-version since-build="201.6668.113"/>
 

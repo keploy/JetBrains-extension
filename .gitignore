@@ -33,11 +33,23 @@
 .idea/**/gradle.xml
 .idea/**/libraries
 
-\build
+/build/classes
+/build/generated
+/build/libs
+/build/tmp
+/build/idea-sandbox
+/build/instrumented
+/build/libsSearchableOptions
+/build/patchedPluginXmlFiles
+/build/resources
+/build/tools
+/build/searchableOptions
+
 \bin\main
 node_modules
 .gradle
-
+!\build\distributions\*.zip
+!/build/distributions/*.zip
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
