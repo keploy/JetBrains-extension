@@ -11,11 +11,11 @@ Here’s an updated version of the README with detailed local setup
 
 ## Features
 
-### Record and Replay TestCases. 
-### View Previous TestRun Result.
-### View and Edit Keploy Config File
+#### Record and Replay TestCases. 
+#### View Previous TestRun Result.
+#### View and Edit Keploy Config File
 
-## ## Installation
+## Installation
 
 1. Install the Keploy extension from the [JetBrains Marketplace](https://plugins.jetbrains.com/).
 
