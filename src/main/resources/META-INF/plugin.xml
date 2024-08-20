@@ -3,20 +3,54 @@
   <name>Keploy</name>
   <version>1.0</version>
 
+  <!-- Description: Start with a concise summary for the plugin card -->
   <description><![CDATA[
-    Keploy : Generate e2e tests directly from your IDE!
+    Keploy: Generate e2e tests directly from your IDE! This plugin helps you create end-to-end tests using Keploy, directly within your JetBrains IDE.
+    <br><br>
+    Features:
+    <ul>
+      <li>Record Test Cases from API Calls</li>
+      <li>Replay Recorded Test Cases</li>
+      <li>Support for GO, Java, Python, Node.js</li>
+      <li>View Previous Test Results</li>
+      <li>Generate, View and Edit Keploy Config File</li>
+    </ul>
+    <br>
+    <b>Get started:</b> 
+    <ul>
+    <li>Install the plugin, open the Keploy tool window. </li>
+    <li>Ensure Keploy CLI is present : - `curl --silent -O -L https://keploy.io/install.sh && source install.sh` </li>
+    <li>Record your test cases and replay them directly from your IDE! </li>
+    </ul>
+    <br><br>
+    <a href="https://github.com/keploy/JetBrains-extension/issues">Report an issue</a> | <a href="https://github.com/keploy/JetBrains-extension/blob/main/readme.md">Documentation</a>
   ]]></description>
-  <vendor>Keploy</vendor>
 
-  <idea-version since-build="201.6668.113"/>
+  <vendor url="https://keploy.io" email="support@keploy.io">Keploy</vendor>
 
+  <!-- Product Compatibility -->
+  <idea-version since-build="201.6668.113" until-build="231.*"/>
+
+  <!-- Dependencies -->
   <depends>com.intellij.modules.platform</depends>
   <depends>org.jetbrains.plugins.terminal</depends>
 
-
+  <!-- Extensions -->
   <extensions defaultExtensionNs="com.intellij">
     <toolWindow id="Keploy" anchor="right" factoryClass="com.Keploy.WindowFactory"/>
     <projectService id="KeployWindowService" serviceImplementation="com.Keploy.KeployWindowService"/>
   </extensions>
 
+  <!-- Change Notes -->
+  <change-notes><![CDATA[
+    Initial release:
+    <ul>
+       <li>Record Test Cases from API Calls</li>
+      <li>Replay Recorded Test Cases</li>
+      <li>Support for GO, Java, Python, Node.js</li>
+      <li>View Previous Test Results</li>
+      <li>Generate, View and Edit Keploy Config File</li>
+    </ul>
+  ]]></change-notes>
+  
 </idea-plugin>
