@@ -1,7 +1,10 @@
-Here’s an updated version of the README with detailed local setup 
+<div align="center">
+
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen?logo=github)](CODE_OF_CONDUCT.md) 
-[![Slack](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA)](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA)
-[![License](https://opensource.org/licenses/Apache-2.0)](https://opensource.org/licenses/Apache-2.0)
+[![Slack](https://img.shields.io/badge/Slack-Join%20Slack-blue?logo=slack)](https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc01-o54cOG0X1G6eVJTuI_orSA)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+</div>
 
 # Keploy
 
